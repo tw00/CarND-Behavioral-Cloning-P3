@@ -1,12 +1,16 @@
 import argparse
 import base64
 import json
+import pickle
+import random
 
 import numpy as np
 import socketio
 import eventlet
 import eventlet.wsgi
 import time
+import yuv_colorspace
+import cv2
 from PIL import Image
 from PIL import ImageOps
 from flask import Flask, render_template
@@ -25,6 +29,23 @@ app = Flask(__name__)
 model = None
 prev_image_array = None
 
+def preprocess_img(img):
+    IMG_W = 128
+    IMG_H = 64
+
+    #img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    #img = img.convert('RGB')
+    img = np.array(img)
+    #print(img);
+    #print(img.shape);
+    #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
+    img = cv2.resize(img, (IMG_W, IMG_H))
+
+    img = img.astype(float)/255.0
+    img = yuv_colorspace.rgb2yuv(img) # convert to YUV colorspace
+    img[:,:,0] = img[:,:,0] - 0.5; # remove mean
+    return img
+
 @sio.on('telemetry')
 def telemetry(sid, data):
     # The current steering angle of the car
@@ -33,16 +54,29 @@ def telemetry(sid, data):
     throttle = data["throttle"]
     # The current speed of the car
     speed = data["speed"]
+    print("current state: sa = {}, f = {}, s = {}: ".format(steering_angle, throttle, speed), end="");
     # The current image from the center camera of the car
     imgString = data["image"]
     image = Image.open(BytesIO(base64.b64decode(imgString)))
+    image = preprocess_img( image );
     image_array = np.asarray(image)
+    #print(image_array.shape);
     transformed_image_array = image_array[None, :, :, :]
+    if (random.random() < 0.1):
+        with open("foo.p", "wb") as f:
+            pickle.dump(transformed_image_array, f)
+    #print(transformed_image_array.shape);
     # This model currently assumes that the features of the model are just the images. Feel free to change this.
-    steering_angle = float(model.predict(transformed_image_array, batch_size=1))
+    #
+    #print("calling model");
+    #print(transformed_image_array.shape);
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
-    throttle = 0.2
-    print(steering_angle, throttle)
+    #steering_angle = 0.1
+    steering_angle = float(model.predict(transformed_image_array, batch_size=1))
+    #steering_angle = steering_angle * 5;
+    throttle = 0.4
+    print("predicted steering angle = {}, throttle = {}".format(steering_angle, throttle))
+    #print(steering_angle, throttle)
     send_control(steering_angle, throttle)
 
 
@@ -65,14 +99,7 @@ if __name__ == '__main__':
     help='Path to model definition json. Model weights should be on the same path.')
     args = parser.parse_args()
     with open(args.model, 'r') as jfile:
-        # NOTE: if you saved the file by calling json.dump(model.to_json(), ...)
-        # then you will have to call:
-        #
-        #   model = model_from_json(json.loads(jfile.read()))\
-        #
-        # instead.
-        model = model_from_json(jfile.read())
-
+        model = model_from_json(json.loads(jfile.read()))\
 
     model.compile("adam", "mse")
     weights_file = args.model.replace('json', 'h5')
