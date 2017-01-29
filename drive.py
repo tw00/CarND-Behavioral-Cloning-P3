@@ -27,7 +27,8 @@ tf.python.control_flow_ops = tf
 sio = socketio.Server()
 app = Flask(__name__)
 model = None
-prev_image_array = None
+#prev_image_array = None
+last_steering = 0;
 
 def preprocess_img(img):
     IMG_W = 128
@@ -47,7 +48,8 @@ def preprocess_img(img):
     return img
 
 @sio.on('telemetry')
-def telemetry(sid, data):
+def telemetry(sid, data, alpha=2.5):
+    global last_steering
     # The current steering angle of the car
     steering_angle = data["steering_angle"]
     # The current throttle of the car
@@ -72,10 +74,12 @@ def telemetry(sid, data):
     #print(transformed_image_array.shape);
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
     #steering_angle = 0.1
-    steering_angle = float(model.predict(transformed_image_array, batch_size=1))
+    new_steering_angle = float(model.predict(transformed_image_array, batch_size=1))
+    steering_angle = (1-1/alpha)*last_steering + (1/alpha)*new_steering_angle
+    last_steering = steering_angle;
     #steering_angle = steering_angle * 5;
-    throttle = 0.4
-    print("predicted steering angle = {}, throttle = {}".format(steering_angle, throttle))
+    throttle = 0.05
+    print("predicted sa = {}, throttle = {}".format(steering_angle, throttle))
     #print(steering_angle, throttle)
     send_control(steering_angle, throttle)
 
@@ -99,7 +103,7 @@ if __name__ == '__main__':
     help='Path to model definition json. Model weights should be on the same path.')
     args = parser.parse_args()
     with open(args.model, 'r') as jfile:
-        model = model_from_json(json.loads(jfile.read()))\
+        model = model_from_json(json.loads(jfile.read()))
 
     model.compile("adam", "mse")
     weights_file = args.model.replace('json', 'h5')
