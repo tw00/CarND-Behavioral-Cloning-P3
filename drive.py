@@ -64,7 +64,7 @@ def telemetry(sid, data, alpha=2.5):
     image_array = np.asarray(image)
     #print(image_array.shape);
     transformed_image_array = image_array[None, :, :, :]
-    if (random.random() < 0.1):
+    if (random.random() < 0.1) and False:
         with open("foo.p", "wb") as f:
             pickle.dump(transformed_image_array, f)
     #print(transformed_image_array.shape);
@@ -78,7 +78,7 @@ def telemetry(sid, data, alpha=2.5):
     steering_angle = (1-1/alpha)*last_steering + (1/alpha)*new_steering_angle
     last_steering = steering_angle;
     #steering_angle = steering_angle * 5;
-    throttle = 0.05
+    throttle = 0.03
     print("predicted sa = {}, throttle = {}".format(steering_angle, throttle))
     #print(steering_angle, throttle)
     send_control(steering_angle, throttle)
