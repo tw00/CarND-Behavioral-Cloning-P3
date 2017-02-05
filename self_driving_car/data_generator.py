@@ -14,6 +14,8 @@ from sklearn.model_selection import train_test_split
 class DataPreprocessor:
     """
     This class serves the following purposes:
+        Creating a collection of preprocessed images (IMG_preprocessed)
+        and a training data base (index.pkl)
     """
     # orginal size: 320x160 RGB 8-bit
     IMG_W = 128;
@@ -165,18 +167,23 @@ class DataPreprocessor:
 
 # ============================================================================================
 class DataGenerator:#(iter):
-    def __init__(self, batch_size = 128):
+    """
+    This class serves the following purposes:
+        Generate training and validation data on the fly
+    """
+    def __init__(self):
         self.data        = None;
         self.datasets    = [];
-        self.batch_size  = batch_size;
         self.size        = 0;
         self.index       = 1;
+        self.basepath    = "./"
 
     # ----------------------------------------------------------------------------------------
     def add_dataset(self, dataset, basepath = '/mnt/data/'):
         # TODO: Allow csv_file list
         # Location = r'C:\Users\david\notebooks\births1880.txt'
         self.datasets.append(dataset);
+        self.basepath = basepath # HACK
         index_path = basepath + "/" + dataset + "/" + "index";
         df = pd.read_pickle(index_path + '.pkl')
         if isinstance(self.data,pd.DataFrame):
@@ -216,38 +223,69 @@ class DataGenerator:#(iter):
         calculate higher probabilty for turns
         """
         sLength = len(self.data)
-        # datagen.data['weight'] = np.ones((sLength,1),dtype=float)/sLength
+        # self.data['weight'] = np.ones((sLength,1),dtype=float)/sLength
         self.data['weight'] = self.data['steering'].map(lambda x: p_min + x*(p_max-p_min)/0.5)
         self.data['weight'] /= self.data['weight'].sum()
-        self.data['weight'].sum()
+        print("higher probabilities for steering samples (sum of p = %f)" % self.data['weight'].sum())
 
     # ----------------------------------------------------------------------------------------
     def shuffle(self):
-        # geht das? index?
         self.data = self.data.reindex(np.random.permutation(self.data.index))
+        print("shuffled data")
 
     # ----------------------------------------------------------------------------------------
     def split(self, valid_size=0.1):
-        #X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.1)
-        #X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0)
-        #features = None;
-        #labels = None;
+        sLength = len(self.data)
+        assert valid_size > 0 and valid_size < 1, "Invalid validation size"
+        sLengthValid = round(sLength * valid_size)
+        is_train = np.ones([sLength],dtype=bool)
+        is_train[0:sLengthValid] = False
+        self.data['is_train'] = is_train;
+        np.sum(self.data['is_train'])
+        print("split data into %d training sample and %d validation samples" %
+              (self.num_of_samples('train'), self.num_of_samples('valid')))
         return
 
     # ----------------------------------------------------------------------------------------
-    def num_of_samples(self, sample_set='train'): # sample_set = {all, train, test, valid}
-#        N = self.data.shape[0]
-        return len(self.data);
+    def num_of_samples(self, sample_set='train'): # sample_set = {all, train, valid}
+        if sample_set == 'train':
+            return np.sum(self.data['is_train'] == True)
+        elif sample_set == 'valid':
+            return np.sum(self.data['is_train'] == False)
+        elif sample_set == 'all':
+            # N = self.data.shape[0]
+            return len(self.data)
+
+    # ----------------------------------------------------------------------------------------
+    def get_batch_generator(self, batch_size = 256):
+        def _generator(stream):
+            batch_items = []
+            for i, row in enumerate(stream):
+                item = (row[0], row[1])
+                batch_items.append(item)
+                if len(batch_items) >= batch_size:
+                    current_batch = batch_items[:batch_size]
+                    yield tuple(map(np.asarray, zip(*current_batch)))
+                    batch_items = batch_items[batch_size:]
+        return _generator(self)
 
     # ----------------------------------------------------------------------------------------
     def __next__(self):
         self.index %= self.num_of_samples('train')
         self.index += 1
-        return self.data[self.index-1]
+        row = self.data[self.data['is_train'] == True].iloc[self.index-1]
+        img = cv2.imread(self.basepath + "/" + row['img'])
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
+        return (img, row['steering'])
 
+    # ----------------------------------------------------------------------------------------
     def __iter__(self):
         return self
-        # todo yield
+
+    # ----------------------------------------------------------------------------------------
+    def reset(self):
+        self.index = 1
+        return self
 
 # datagen = DataGenerator("/mnt/data/dataset1_udacity")
 
