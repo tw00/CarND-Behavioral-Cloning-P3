@@ -5,8 +5,8 @@ from skimage import color
 from scipy import linalg
 
 yuv_from_rgb = np.array([[ 0.299     ,  0.587     ,  0.114      ],
-                                                  [-0.14714119, -0.28886916,  0.43601035 ],
-                                                  [ 0.61497538, -0.51496512, -0.10001026 ]])
+                        [-0.14714119, -0.28886916,  0.43601035 ],
+                        [ 0.61497538, -0.51496512, -0.10001026 ]])
 
 rgb_from_yuv = linalg.inv(yuv_from_rgb)
 

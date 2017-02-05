@@ -10,6 +10,7 @@ import cv2
 import csv
 import numpy as np
 from sklearn.model_selection import train_test_split
+from self_driving_car import yuv_colorspace # TWE
 
 class DataPreprocessor:
     """
@@ -171,6 +172,15 @@ class DataGenerator:#(iter):
     This class serves the following purposes:
         Generate training and validation data on the fly
     """
+
+    # ----------------------------------------------------------------------------------------
+    def normalize(img):
+        img = img / 255.0
+        img = yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
+        img[:,:,0] = img[:,:,0] - 0.5;      # remove mean
+        return img
+
+    # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.data        = None;
         self.datasets    = [];
@@ -257,7 +267,7 @@ class DataGenerator:#(iter):
             return len(self.data)
 
     # ----------------------------------------------------------------------------------------
-    def get_batch_generator(self, batch_size = 256):
+    def get_batch_generator(self, batch_size = 193):
         def _generator(stream):
             batch_items = []
             for i, row in enumerate(stream):
@@ -269,6 +279,19 @@ class DataGenerator:#(iter):
                     batch_items = batch_items[batch_size:]
         return _generator(self)
 
+
+    # ----------------------------------------------------------------------------------------
+    def get_valid_data(self):
+        valid_rows = self.data[self.data['is_train'] == False]
+        batch_items = []
+        for i, row in valid_rows.iterrows():
+            img = cv2.imread(self.basepath + "/" + row['img'])
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
+            img = DataGenerator.normalize(img);
+            item = (img, row['steering'])
+            batch_items.append(item)
+        return tuple(map(np.asarray, zip(*batch_items)))
+
     # ----------------------------------------------------------------------------------------
     def __next__(self):
         self.index %= self.num_of_samples('train')
@@ -276,6 +299,7 @@ class DataGenerator:#(iter):
         row = self.data[self.data['is_train'] == True].iloc[self.index-1]
         img = cv2.imread(self.basepath + "/" + row['img'])
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
+        img = DataGenerator.normalize(img);
         return (img, row['steering'])
 
     # ----------------------------------------------------------------------------------------
@@ -286,15 +310,3 @@ class DataGenerator:#(iter):
     def reset(self):
         self.index = 1
         return self
-
-# datagen = DataGenerator("/mnt/data/dataset1_udacity")
-
-#       features[img_counter,:,:,:] = img;
-#       labels[img_counter] = steering_angle;
-#       img_counter += 1;
-#                    features[img_counter,:,:,:] = img_new;
-#left_img   = basepath + os.path.basename(csv['left'][i]);
-#right_img  = basepath + os.path.basename(csv['right'][i]);
-#center_img = basepath + os.path.basename(csv['center'][i]);
-#        features = np.zeros(shape=[num_of_samples,IMG_H,IMG_W,3]);
-#img_path_full = dataset + "/IMG_preprocessed/" + camera + "_" + func_filter.__name__ + "_" +  img_path

@@ -47,8 +47,11 @@ def telemetry(sid, data, alpha=2.5):
     image = preprocess_img( image );
     image_array = np.asarray(image)
     #print(image_array.shape);
+# img = np.array(img)
+# img = cv2.resize(img, (IMG_W, IMG_H)) !!!!!!!
+# img = img.astype(float)/255.0
     transformed_image_array = image_array[None, :, :, :]
-    if (random.random() < 0.1) and False:
+    if (random.random() < 0.002) and False:
         with open("foo.p", "wb") as f:
             pickle.dump(transformed_image_array, f)
     #print(transformed_image_array.shape);
