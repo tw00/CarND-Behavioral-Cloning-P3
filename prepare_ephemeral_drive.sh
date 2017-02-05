@@ -5,6 +5,8 @@ source activate carnd-term1
 # Create empty directory on AWS ephemeral drive
 sudo mkdir -p /mnt/data
 sudo chown carnd.carnd /mnt/data
+sudo mkdir -p /mnt/models
+sudo chown carnd.carnd /mnt/models
 cp -r data/* /mnt/data/
 # rm -r /mnt/data/*.p
 
