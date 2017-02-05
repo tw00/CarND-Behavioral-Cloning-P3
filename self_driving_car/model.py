@@ -76,6 +76,8 @@ class SDRegressionModel():
         self.model     = model;
         self.modelname = name;
         self.basepath  = basepath;
+        self._history  = None
+        self._last_session_name = None
 
     # ----------------------------------------------------------------------------------------
     def train_simple(self, X_train_norm, y_train_norm):
@@ -95,6 +97,7 @@ class SDRegressionModel():
     # ----------------------------------------------------------------------------------------
     def train_generator( self, datagen, session_name, nb_epoch = 10, lr = 0):
         model = self.model;
+        self._last_session_name = session_name;
 
         if not lr == 0:
             model.optimizer.lr.assign(lr);
@@ -124,9 +127,12 @@ class SDRegressionModel():
                             validation_data=valid_data,
                             callbacks=[checkpoint_callback, tensorboard_callback]);
             # TODO: Save trainig history
-        with open(self.basepath + "/" + self.modelname + "/weights/" + session_name + "/history.pkl", "w") as f:
+        self._history = history;
+
+    # ----------------------------------------------------------------------------------------
+    def save_history(self):
+        with open(self.basepath + "/" + self.modelname + "/weights/" + self._last_session_name + "/history.pkl", "w") as f:
             pickle.dump(history, f)
-        return history
 
     # ----------------------------------------------------------------------------------------
     def save_model_architecture(self, filename="model.json"):
