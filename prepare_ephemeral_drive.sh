@@ -1,7 +1,5 @@
 #!/bin/bash
 
-source activate carnd-term1
-
 # Create empty directory on AWS ephemeral drive
 sudo mkdir -p /mnt/data
 sudo chown carnd.carnd /mnt/data
@@ -17,3 +15,9 @@ sudo mkswap /mnt/swapfile.img
 sudo swapon /mnt/swapfile.img
 cat /proc/swaps 
 free -m 
+
+#
+source activate carnd-term1
+./run_postprocess.py --dataset dataset1_udacity
+./run_postprocess.py --dataset dataset2_twe_one_lap
+./run_postprocess.py --dataset dataset3_ssz_one_lap
