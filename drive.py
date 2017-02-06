@@ -6,6 +6,7 @@ import base64
 from datetime import datetime
 import os
 import shutil
+import sys
 
 import numpy as np
 import socketio
@@ -48,16 +49,18 @@ def telemetry(sid, data):
         image_array = np.asarray(image)
         image_array = preprocess_img( image_array );
 
-        try:
-            if SMOOTH_STEERING:
-                new_steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
-                steering_angle = (1-1/alpha)*last_steering + (1/alpha)*new_steering_angle
-                last_steering = steering_angle;
-            else:
-                steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
-        except:
-            print('!!! Model prediction failed !!!');
-            steering_angle = 0
+        #try:
+        if SMOOTH_STEERING:
+            new_steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
+            steering_angle = (1-1/alpha)*last_steering + (1/alpha)*new_steering_angle
+            last_steering = steering_angle;
+        else:
+            print('predict');
+            steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
+        #except:
+        #    print('!!! Model prediction failed !!!');
+        #    print(sys.exc_info()[0])
+        #    steering_angle = 0
 
         throttle = 0.2
         print("predicted steering = {}, throttle = {}".format(steering_angle, throttle))
