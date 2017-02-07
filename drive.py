@@ -13,11 +13,13 @@ import socketio
 import eventlet
 import eventlet.wsgi
 import cv2
+import self_driving_car
 from PIL import Image
 from flask import Flask
 from io import BytesIO
 
 from keras.models import load_model
+from self_driving_car import yuv_colorspace # TWE
 
 sio = socketio.Server()
 app = Flask(__name__)
@@ -28,9 +30,12 @@ alpha = 2.5
 SMOOTH_STEERING = False
 
 def preprocess_img(img):
-#    img = np.array(img)
+    # Model input: 128x128x3 YUV normalized!
+    img = img.copy();
     img = cv2.resize(img, (128, 128))
-    img = img.astype(float)/255.0
+    img = img.astype(float) / 255.0
+    img = self_driving_car.yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
+    img[:,:,0] = img[:,:,0] - 0.5;      # remove mean
     return img
 
 @sio.on('telemetry')
@@ -48,6 +53,7 @@ def telemetry(sid, data):
         image = Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image)
         image_array = preprocess_img( image_array );
+        #normalize
 
         #try:
         if SMOOTH_STEERING:
@@ -55,14 +61,14 @@ def telemetry(sid, data):
             steering_angle = (1-1/alpha)*last_steering + (1/alpha)*new_steering_angle
             last_steering = steering_angle;
         else:
-            print('predict');
+#            print('predict');
             steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
         #except:
         #    print('!!! Model prediction failed !!!');
         #    print(sys.exc_info()[0])
         #    steering_angle = 0
 
-        throttle = 0.2
+        throttle = 0.1
         print("predicted steering = {}, throttle = {}".format(steering_angle, throttle))
         send_control(steering_angle, throttle)
 

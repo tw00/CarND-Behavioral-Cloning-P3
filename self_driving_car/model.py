@@ -11,7 +11,7 @@ tf.python.control_flow_ops = tf
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten, Lambda, ELU
 from keras.layers.core import Activation
-from keras.layers.convolutional import Convolution2D
+from keras.layers.convolutional import Convolution2D, Cropping2D
 from keras.layers.pooling import MaxPooling2D
 from keras.layers.normalization import BatchNormalization
 from keras.optimizers import Adam
@@ -25,19 +25,26 @@ class SDRegressionModel():
     def model_architecture():
         return ("commaAI_modified", SDRegressionModel.model_commaAI_modified())
 
+    def model_crop():
+        model = Sequential()
+        model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(128,128,3)))
+        model.compile(optimizer="adam", loss="mse", metrics=['accuracy'])
+        return model
+
     # ----------------------------------------------------------------------------------------
     def model_commaAI_modified():
         # Input 128x128x3 YUV normalized!
-        ch, row, col = 3, 128, 128  # camera format
+#        ch, row, col = 3, 128, 128  # camera format
         use_dropout = True
 
         def crop(img):
             #return img[45:-15,:,:]
-            return img[:, 45:-15, :]
-    #        return x[:, 60:134, 0:320]
+#            return img[:, 45:-15, :]
+            return img[45:-15, :, :]
 
         model = Sequential()
-        model.add(Lambda(crop, input_shape=(128, 128, 3), name="crop"))
+        #model.add(Lambda(crop, input_shape=(128, 128, 3), name="crop"))
+        model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(128,128,3)))
         #model.add(Lambda(lambda x: x, input_shape=(128, 128, 3)))
         #model.add(Lambda(normalize, name="normalize"))
 

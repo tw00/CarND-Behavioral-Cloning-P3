@@ -175,10 +175,18 @@ class DataGenerator:#(iter):
 
     # ----------------------------------------------------------------------------------------
     def normalize(img):
-        img = img / 255.0
+        img = img.copy();
+        img = img.astype(float) / 255.0
         img = yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
         img[:,:,0] = img[:,:,0] - 0.5;      # remove mean
         return img
+
+    def denormalize(img):
+        img = img.copy()
+        img[:,:,0] = img[:,:,0] + 0.5;
+        img = self_driving_car.yuv_colorspace.yuv2rgb(img)
+        img = img * 255
+        return img.astype(np.uint8)
 
     # ----------------------------------------------------------------------------------------
     def __init__(self):
@@ -237,6 +245,7 @@ class DataGenerator:#(iter):
         self.data['weight'] = self.data['steering'].map(lambda x: p_min + x*(p_max-p_min)/0.5)
         self.data['weight'] /= self.data['weight'].sum()
         print("higher probabilities for steering samples (sum of p = %f)" % self.data['weight'].sum())
+        # TODO: Add data based on weights at the end (alternative)
 
     # ----------------------------------------------------------------------------------------
     def shuffle(self):
@@ -268,6 +277,7 @@ class DataGenerator:#(iter):
 
     # ----------------------------------------------------------------------------------------
     def get_batch_generator(self, batch_size = 193):
+        # TODO Doesnt match with num_of_samples('train')
         def _generator(stream):
             batch_items = []
             for i, row in enumerate(stream):
@@ -294,6 +304,7 @@ class DataGenerator:#(iter):
 
     # ----------------------------------------------------------------------------------------
     def __next__(self):
+        # TODO: SELECT BASED ON WEIGHTS!!!!!
         self.index %= self.num_of_samples('train')
         self.index += 1
         row = self.data[self.data['is_train'] == True].iloc[self.index-1]
