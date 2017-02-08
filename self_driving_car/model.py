@@ -56,7 +56,7 @@ class SDRegressionModel():
             model.add(Convolution2D(32, 5, 5, subsample=(2, 2), border_mode="same"))
         model.add(ELU())
         with tf.name_scope('conv2D_3'):
-            model.add(Convolution2D(64, 5, 5, subsample=(5, 5), border_mode="same"))
+            model.add(Convolution2D(64, 5, 5, subsample=(4, 4), border_mode="same"))
         model.add(Flatten())
         if use_dropout: # NEU
             model.add(Dropout(.2)) # NEU

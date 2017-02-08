@@ -21,7 +21,7 @@ class DataPreprocessor:
     # orginal size: 320x160 RGB 8-bit
     IMG_W = 128;
     IMG_H = 128;
-    steering_offset = 0.1;
+    steering_offset = 0.2;
 
     # ----------------------------------------------------------------------------------------
     def mod_identity(img, steering):
@@ -205,7 +205,7 @@ class DataGenerator:#(iter):
         index_path = basepath + "/" + dataset + "/" + "index";
         df = pd.read_pickle(index_path + '.pkl')
         if isinstance(self.data,pd.DataFrame):
-            self.data = pd.concat([self.data, df])
+            self.data = pd.concat([self.data, df], ignore_index=True)
         else:
             self.data = df;
 

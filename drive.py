@@ -26,8 +26,8 @@ app = Flask(__name__)
 model = None
 prev_image_array = None
 last_steering = 0;
+SMOOTH_STEERING = True
 alpha = 2.5
-SMOOTH_STEERING = False
 
 def preprocess_img(img):
     # Model input: 128x128x3 YUV normalized!
@@ -53,7 +53,6 @@ def telemetry(sid, data):
         image = Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image)
         image_array = preprocess_img( image_array );
-        #normalize
 
         #try:
         if SMOOTH_STEERING:
@@ -67,8 +66,9 @@ def telemetry(sid, data):
         #    print('!!! Model prediction failed !!!');
         #    print(sys.exc_info()[0])
         #    steering_angle = 0
+        steering_angle = steering_angle * 1.3;
 
-        throttle = 0.1
+        throttle = 0.35
         print("predicted steering = {}, throttle = {}".format(steering_angle, throttle))
         send_control(steering_angle, throttle)
 
