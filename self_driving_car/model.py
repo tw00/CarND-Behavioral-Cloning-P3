@@ -21,6 +21,8 @@ from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
 #from keras import callbacks
 
+from self_driving_car import yuv_colorspace # TWE
+
 class SDRegressionModel():
 
     # ----------------------------------------------------------------------------------------

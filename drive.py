@@ -14,6 +14,7 @@ import eventlet
 import eventlet.wsgi
 import cv2
 import self_driving_car
+import tensorflow as tf
 from PIL import Image
 from flask import Flask
 from io import BytesIO
@@ -30,8 +31,11 @@ last_steering = 0;
 SMOOTH_STEERING = True
 alpha = 2.5
 
-normalize = SDRegressionModel.model_architecture("commaAI")['normalizer'];
-#normalize = SDRegressionModel.model_architecture("commaAI_modified")['normalizer'];
+# <<<<<<<<<<<<<<<<<<<<<
+#normalize = SDRegressionModel.model_architecture("commaAI")['normalizer'];
+normalize = SDRegressionModel.model_architecture("commaAI_modified")['normalizer'];
+# <<<<<<<<<<<<<<<<<<<<<
+
 # TODO: USE normalizer from model
 #def preprocess_img(img):
 #    # Model input: 128x128x3 YUV normalized!
@@ -62,19 +66,19 @@ def telemetry(sid, data):
 
         #try:
         if SMOOTH_STEERING:
-            new_steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
+            with tf.device("/cpu:0"):
+                new_steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
             steering_angle = (1-1/alpha)*last_steering + (1/alpha)*new_steering_angle
             last_steering = steering_angle;
         else:
-#            print('predict');
             steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
         #except:
         #    print('!!! Model prediction failed !!!');
         #    print(sys.exc_info()[0])
         #    steering_angle = 0
-        steering_angle = steering_angle * 1.3;
+#        steering_angle = steering_angle * 1.3;
 
-        throttle = 0.35
+        throttle = 0.12
         print("predicted steering = {}, throttle = {}".format(steering_angle, throttle))
         send_control(steering_angle, throttle)
 
