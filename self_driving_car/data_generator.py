@@ -21,7 +21,7 @@ class DataPreprocessor:
     # orginal size: 320x160 RGB 8-bit
     IMG_W = 128;
     IMG_H = 128;
-    steering_offset = 0.2;
+    steering_offset = 0; # done later...
 
     # ----------------------------------------------------------------------------------------
     def mod_identity(img, steering):
@@ -122,12 +122,12 @@ class DataPreprocessor:
             speed           = csv['speed'][i];
 
             for camera, img_path in (('L', left_img), ('R', right_img), ('C', center_img)):
-                if not camera == 'C' and num_of_samples > 1:
+                if not camera == 'C' and num_of_cams == 1:
                     continue
 
         #       EVTL: np.clip, np.min
-                if camera == 'L': steering_angle = steering_angle + steering_offset;
-                if camera == 'R': steering_angle = steering_angle - steering_offset;
+                if camera == 'L': steering_angle = steering_angle + DataPreprocessor.steering_offset;
+                if camera == 'R': steering_angle = steering_angle - DataPreprocessor.steering_offset;
 
                 #print("loading " + img_path);
                 img = cv2.imread(basepath + "/" + dataset + "/IMG/" + img_path)
@@ -173,24 +173,11 @@ class DataGenerator:#(iter):
         Generate training and validation data on the fly
     """
 
-    # ----------------------------------------------------------------------------------------
-    def normalize(img):
-        img = img.copy();
-        img = img.astype(float) / 255.0
-        img = yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
-        img[:,:,0] = img[:,:,0] - 0.5;      # remove mean
-        return img
-
-    def denormalize(img):
-        img = img.copy()
-        img[:,:,0] = img[:,:,0] + 0.5;
-        img = self_driving_car.yuv_colorspace.yuv2rgb(img)
-        img = img * 255
-        return img.astype(np.uint8)
 
     # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.data        = None;
+        self.normalizer  = None;
         self.datasets    = [];
         self.size        = 0;
         self.index       = 1;
@@ -210,11 +197,14 @@ class DataGenerator:#(iter):
             self.data = df;
 
     # ----------------------------------------------------------------------------------------
-    def prepare(self):
-        self.filter_data();
-        self.smooth_steering();
+    def prepare(self, filter_data = True, smooth_steering = True, shuffle = True):
+        if filter_data:
+            self.filter_data();
+        if smooth_steering:
+            self.smooth_steering();
+        if shuffle:
+            self.shuffle();
         self.calc_weights();
-        self.shuffle();
         self.split();
 
     # ----------------------------------------------------------------------------------------
@@ -253,6 +243,17 @@ class DataGenerator:#(iter):
         print("shuffled data")
 
     # ----------------------------------------------------------------------------------------
+    def correct_camera_steering(self, offset = 0.0):
+        self.data.loc[self.data['cam'] == 'R', 'steering'] -= offset;
+        self.data.loc[self.data['cam'] == 'L', 'steering'] += offset;
+        print("steering angle corrected by +/- %f" % offset)
+
+    # ----------------------------------------------------------------------------------------
+    def deactivate_mod(self, mod):
+        # mod_identity, mod_lighting, mod_blur, mod_flip, mod_shadow,
+        self.data.loc[self.data['filter'] == mod, ('is_train', 'is_valid')] = False;
+
+    # ----------------------------------------------------------------------------------------
     def split(self, valid_size=0.1):
         sLength = len(self.data)
         assert valid_size > 0 and valid_size < 1, "Invalid validation size"
@@ -260,7 +261,7 @@ class DataGenerator:#(iter):
         is_train = np.ones([sLength],dtype=bool)
         is_train[0:sLengthValid] = False
         self.data['is_train'] = is_train;
-        np.sum(self.data['is_train'])
+        self.data['is_valid'] = np.logical_not(is_train);
         print("split data into %d training sample and %d validation samples" %
               (self.num_of_samples('train'), self.num_of_samples('valid')))
         return
@@ -270,7 +271,7 @@ class DataGenerator:#(iter):
         if sample_set == 'train':
             return np.sum(self.data['is_train'] == True)
         elif sample_set == 'valid':
-            return np.sum(self.data['is_train'] == False)
+            return np.sum(self.data['is_valid'] == True)
         elif sample_set == 'all':
             # N = self.data.shape[0]
             return len(self.data)
@@ -292,12 +293,13 @@ class DataGenerator:#(iter):
 
     # ----------------------------------------------------------------------------------------
     def get_valid_data(self):
-        valid_rows = self.data[self.data['is_train'] == False]
+        valid_rows = self.data[self.data['is_valid'] == True]
         batch_items = []
         for i, row in valid_rows.iterrows():
             img = cv2.imread(self.basepath + "/" + row['img'])
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
-            img = DataGenerator.normalize(img);
+#            img = DataGenerator.normalize(img);
+            img = self.normalizer(img);
             item = (img, row['steering'])
             batch_items.append(item)
         return tuple(map(np.asarray, zip(*batch_items)))
@@ -310,7 +312,8 @@ class DataGenerator:#(iter):
         row = self.data[self.data['is_train'] == True].iloc[self.index-1]
         img = cv2.imread(self.basepath + "/" + row['img'])
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
-        img = DataGenerator.normalize(img);
+        # img = DataGenerator.normalize(img);
+        img = self.normalizer(img);
         return (img, row['steering'])
 
     # ----------------------------------------------------------------------------------------

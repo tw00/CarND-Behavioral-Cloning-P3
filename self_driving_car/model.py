@@ -2,6 +2,8 @@
 
 import os
 import pickle
+import sys
+import cv2
 
 # Fix error with TF and Keras
 import tensorflow as tf
@@ -22,13 +24,70 @@ from keras.callbacks import TensorBoard
 class SDRegressionModel():
 
     # ----------------------------------------------------------------------------------------
-    def model_architecture():
-        return ("commaAI_modified", SDRegressionModel.model_commaAI_modified())
+    def model_architecture(model):
+        if model == "commaAI":
+            return {'name': "commaAI",
+                    'model': SDRegressionModel.model_commaAI(),
+                    'normalizer': SDRegressionModel.normalize_comma}
+        elif model == "commaAI_modified":
+            return {'name': "commaAI_modified",
+                    'model': SDRegressionModel.model_commaAI_modified(),
+                    'normalizer': SDRegressionModel.normalize}
+        else: print("model %s not found" % model);
 
+    # ----------------------------------------------------------------------------------------
+    def normalize(img):
+        img = img.copy();
+        if img.shape != (128,128):
+            img = cv2.resize(img, (128, 128))
+        img = img.astype(float) / 255.0
+        img = yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
+        img[:,:,0] = img[:,:,0] - 0.5;      # remove mean
+        return img
+
+    def denormalize(img):
+        img = img.copy()
+        img[:,:,0] = img[:,:,0] + 0.5;
+        img = self_driving_car.yuv_colorspace.yuv2rgb(img)
+        img = img * 255
+        return img.astype(np.uint8)
+
+    def normalize_comma(img):
+        img = img.copy();
+        if img.shape != (160,320):
+            img = cv2.resize(img, (160, 320))
+#        img = img.astype(float) / 255.0
+#        img = yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
+#        img = img.astype * 255
+        return img
+
+    # ----------------------------------------------------------------------------------------
     def model_crop():
         model = Sequential()
         model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(128,128,3)))
         model.compile(optimizer="adam", loss="mse", metrics=['accuracy'])
+        return model
+
+    # ----------------------------------------------------------------------------------------
+    def model_commaAI():
+        ch, row, col = 3, 320, 160  # camera format
+        model = Sequential()
+        model.add(Lambda(lambda x: x/127.5 - 1.,
+        input_shape=(row, col, ch),
+        output_shape=(row, col, ch)))
+        model.add(Convolution2D(16, 8, 8, subsample=(4, 4), border_mode="same"))
+        model.add(ELU())
+        model.add(Convolution2D(32, 5, 5, subsample=(2, 2), border_mode="same"))
+        model.add(ELU())
+        model.add(Convolution2D(64, 5, 5, subsample=(2, 2), border_mode="same"))
+        model.add(Flatten())
+        model.add(Dropout(.2))
+        model.add(ELU())
+        model.add(Dense(512))
+        model.add(Dropout(.5))
+        model.add(ELU())
+        model.add(Dense(1))
+        model.compile(optimizer="adam", loss="mse")
         return model
 
     # ----------------------------------------------------------------------------------------
@@ -78,12 +137,13 @@ class SDRegressionModel():
         return model
 
     # ----------------------------------------------------------------------------------------
-    def __init__(self, basepath = '/mnt/models/'):
-        (name, model)  = SDRegressionModel.model_architecture()
-        self.model     = model;
-        self.modelname = name;
-        self.basepath  = basepath;
-        self._history  = None
+    def __init__(self, model = 'commaAI_modified', basepath = '/mnt/models/'):
+        model_info      = SDRegressionModel.model_architecture(model)
+        self.model      = model_info['model'];
+        self.normalizer = model_info['normalizer'];
+        self.modelname  = model_info['name'];
+        self.basepath   = basepath;
+        self._history   = None
         self._last_session_name = None
 
     # ----------------------------------------------------------------------------------------
@@ -105,6 +165,7 @@ class SDRegressionModel():
     def train_generator( self, datagen, session_name, nb_epoch = 10, lr = 0):
         model = self.model;
         self._last_session_name = session_name;
+        datagen.normalizer = self.normalizer
 
         if not lr == 0:
             model.optimizer.lr.assign(lr);
@@ -169,8 +230,11 @@ class SDRegressionModel():
         model.load_weights("./output/model.h5")
 
 if __name__ == '__main__':
-    model = SDRegressionModel.model_architecture()
-    model[1].summary()
+    if len(sys.argv) < 2:
+        print('Please provide model name');
+    else:
+        model = SDRegressionModel.model_architecture(sys.argv[1])['model']
+        model.summary()
 
 #def checkpoint(filepattern="model.{epoch:02d}.h5"):
 #return ModelCheckpoint(filepattern, save_weights_only=True)

@@ -20,6 +20,7 @@ from io import BytesIO
 
 from keras.models import load_model
 from self_driving_car import yuv_colorspace # TWE
+from self_driving_car.model import SDRegressionModel # TWE
 
 sio = socketio.Server()
 app = Flask(__name__)
@@ -29,14 +30,18 @@ last_steering = 0;
 SMOOTH_STEERING = True
 alpha = 2.5
 
-def preprocess_img(img):
-    # Model input: 128x128x3 YUV normalized!
-    img = img.copy();
-    img = cv2.resize(img, (128, 128))
-    img = img.astype(float) / 255.0
-    img = self_driving_car.yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
-    img[:,:,0] = img[:,:,0] - 0.5;      # remove mean
-    return img
+normalize = SDRegressionModel.model_architecture("commaAI")['normalizer'];
+#normalize = SDRegressionModel.model_architecture("commaAI_modified")['normalizer'];
+# TODO: USE normalizer from model
+#def preprocess_img(img):
+#    # Model input: 128x128x3 YUV normalized!
+#    img = img.copy();
+#    if img.shape != (128,128)
+#        img = cv2.resize(img, (128, 128))
+#    img = img.astype(float) / 255.0
+#    img = self_driving_car.yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
+#    img[:,:,0] = img[:,:,0] - 0.5;      # remove mean
+#    return img
 
 @sio.on('telemetry')
 def telemetry(sid, data):
@@ -52,7 +57,8 @@ def telemetry(sid, data):
         imgString = data["image"]
         image = Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image)
-        image_array = preprocess_img( image_array );
+#        image_array = preprocess_img( image_array );
+        image_array = normalize( image_array );
 
         #try:
         if SMOOTH_STEERING:
