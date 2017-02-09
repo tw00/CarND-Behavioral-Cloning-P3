@@ -25,14 +25,19 @@ class DataPreprocessor:
 
     # ----------------------------------------------------------------------------------------
     def mod_identity(img, steering):
-        return (img, steering)
+        #return (image, steering angle, fliped?)
+        return (img, steering, 1)
 
     def mod_flip(img, steering):
         img  = cv2.flip(img,1);
         steering = -steering;
-        return (img, steering)
+        return (img, steering, -1)
 
     def mod_lighting(img, steering, offset_saturation = -1, offset_lightness = -1):
+        if np.random.rand() > 0.5:
+            # keep data balanced
+            (img, steering, flip) = DataPreprocessor.mod_flip(img, steering)
+        else: flip = 1
         if offset_saturation == -1:
             offset_saturation = np.random.randn()*0.1;
         if offset_lightness == -1:
@@ -41,9 +46,13 @@ class DataPreprocessor:
         img_hsv[:,:,1] = np.maximum( np.minimum(img_hsv[:,:,1]+offset_saturation, 1.0), 0.0);
         img_hsv[:,:,2] = np.maximum( np.minimum(img_hsv[:,:,2]+offset_lightness, 1.0), 0.0);
         img_rgb = matplotlib.colors.hsv_to_rgb(img_hsv)*255;
-        return (img_rgb.astype(np.uint8), steering)
+        return (img_rgb.astype(np.uint8), steering, flip)
 
     def mod_shadow(img, steering, offset_shadow = 0.35, minx = 30, miny=30):
+        if np.random.rand() > 0.5:
+            # keep data balanced
+            (img, steering, flip) = DataPreprocessor.mod_flip(img, steering)
+        else: flip = 1
         img_hsv = matplotlib.colors.rgb_to_hsv(img.astype(np.float32)/255.0);
         x = np.random.randint(0,img.shape[0]-minx)
         y = np.random.randint(0,img.shape[1]-miny)
@@ -57,11 +66,15 @@ class DataPreprocessor:
                     img_hsv[shadow_coords[0][0]:shadow_coords[0][1],shadow_coords[1][0]:shadow_coords[1][1],2] \
                     - offset_shadow, 1.0), 0.0);
         img_rgb = matplotlib.colors.hsv_to_rgb(img_hsv)*255;
-        return (img_rgb.astype(np.uint8), steering)
+        return (img_rgb.astype(np.uint8), steering, flip)
 
     def mod_blur(img, steering):
+        if np.random.rand() > 0.5:
+            # keep data balanced
+            (img, steering, flip) = DataPreprocessor.mod_flip(img, steering)
+        else: flip = 1
         img_blur = scipy.misc.imfilter(img, 'smooth')
-        return (img_blur, steering)
+        return (img_blur, steering, flip)
 
     # ----------------------------------------------------------------------------------------
     def __init__(self):
@@ -70,6 +83,7 @@ class DataPreprocessor:
         self.basepath        = None;
         self.img_counter     = 0;
         self.img_list        = [];
+        self.flip_list       = [];
         self.cam_list        = [];
         self.filter_list     = [];
         self.labels          = [];
@@ -108,6 +122,7 @@ class DataPreprocessor:
         labels   = np.zeros(shape=[num_of_samples,4], dtype=np.float32)
         img_list = []
         cam_list = []
+        flip_list = []
         filter_list = []
 
         img_counter = 0;
@@ -135,7 +150,7 @@ class DataPreprocessor:
                 img = cv2.resize(img, (self.IMG_W, self.IMG_H))
 
                 for idx, func_filter in self.filter_switcher.items():
-                    (img_new, steering_new) = func_filter( img, steering_angle );
+                    (img_new, steering_new, flip) = func_filter( img, steering_angle );
 
                     img_path_full = dataset + "/IMG_preprocessed/" + func_filter.__name__ + "_" +  img_path
                     #print("saving:" + img_path_full);
@@ -144,12 +159,14 @@ class DataPreprocessor:
 
                     img_list.append(img_path_full);
                     cam_list.append(camera);
+                    flip_list.append(flip);
                     filter_list.append(func_filter.__name__);
                     labels[img_counter,:] = (steering_new, throttle, brake, speed);
                     img_counter += 1;
 
         self.img_list    = img_list;
         self.cam_list    = cam_list;
+        self.flip_list   = flip_list;
         self.filter_list = filter_list;
         self.labels      = labels;
         self.img_counter = img_counter;
@@ -157,8 +174,8 @@ class DataPreprocessor:
     # ----------------------------------------------------------------------------------------
     def save_index(self):
         dataset = list(zip(self.img_list,self.labels[:,0],self.labels[:,1], \
-                  self.labels[:,2],self.labels[:,3], self.cam_list, self.filter_list ))
-        df = pd.DataFrame(data = dataset, columns=['img', 'steering', 'throttle', 'brake', 'speed', 'cam', 'filter'])
+                  self.labels[:,2],self.labels[:,3], self.cam_list, self.filter_list, self.flip_list ))
+        df = pd.DataFrame(data = dataset, columns=['img', 'steering', 'throttle', 'brake', 'speed', 'cam', 'filter', 'flip'])
 
         index_path = self.basepath + "/" + self.dataset + "/" + "index";
 
@@ -197,32 +214,49 @@ class DataGenerator:#(iter):
             self.data = df;
 
     # ----------------------------------------------------------------------------------------
-    def prepare(self, filter_data = True, smooth_steering = True, shuffle = True):
-        if filter_data:
-            self.filter_data();
+    def auto_prepare(self, filter_data = True, smooth_steering = True, shuffle = True):
         if smooth_steering:
             self.smooth_steering();
         if shuffle:
             self.shuffle();
+        if filter_data:
+            self.filter_data_not_moving();
+            self.filter_data_low_steering();
         self.calc_weights();
         self.split();
 
     # ----------------------------------------------------------------------------------------
-    def filter_data(self, remove_car_not_moving = True):
-        if remove_car_not_moving:
-            N = self.num_of_samples('all');
-            self.data = self.data[self.data.speed >= 10.]
-            print("%d samples removed due to speed < 10" % (N - self.data.shape[0]))
+    def filter_data_not_moving(self, not_moving_threshold = 10.):
+        N = self.num_of_samples('all');
+        self.data = self.data[self.data.speed >= not_moving_threshold]
+        print("%d samples removed due to speed < %f" % (N - self.data.shape[0], not_moving_threshold))
 
     # ----------------------------------------------------------------------------------------
-    def smooth_steering(self, window = 12):
+    def filter_data_low_steering(self, low_steering_threshold = 0.025, low_steering_remove_prop = 0.5):
+        N = self.num_of_samples('all');
+        idx_low_steering = (np.abs(self.data.steering) < low_steering_threshold).values
+        idx_low_sparse = np.where(idx_low_steering == True, np.random.rand(len(idx_low_steering)) < low_steering_remove_prop, False)
+        self.data = self.data[np.logical_not(idx_low_sparse)];
+        print("%d samples randomly removed due to steering < %f" % (N - self.data.shape[0], low_steering_threshold))
+
+    # ----------------------------------------------------------------------------------------
+    def smooth_steering(self, cam = 'C', window = 4):
         # FutureWarning: pd.ewm_mean is deprecated for Series and will be removed in a future
         # version, replace with
         #    Series.ewm(min_periods=0,span=10,adjust=True,ignore_na=False).mean()
+        steering = self.data.loc[(self.data["cam"] == cam) & (self.data["filter"] == "mod_identity"), "steering"].values
 
-        fwd = pd.stats.moments.ewma( self.data.steering.values, span=window )
-        bwd = pd.stats.moments.ewma( self.data.steering.values[::-1], span=window )
-        self.data.steering = np.mean( np.vstack(( fwd, bwd[::-1] )), axis=0 )
+        fwd = pd.stats.moments.ewma( steering, span=window )
+        bwd = pd.stats.moments.ewma( steering[::-1], span=window )
+        steering_smooth = np.mean( np.vstack(( fwd, bwd[::-1] )), axis=0 )
+        print(np.mean(steering));
+        print(np.mean(steering_smooth));
+
+        for mod in ("mod_identity", "mod_flip", "mod_shadow", "mod_lighting", "mod_blur"):
+            flip = self.data.loc[(self.data["cam"] == cam) & (self.data["filter"] == mod), "flip"]
+            self.data.loc[(self.data["cam"] == cam) & (self.data["filter"] == mod), "steering"] = steering_smooth * flip
+        # TODO: Smooth other camera perspectives?
+
         print("steering angle has been smoothed based on window %d" % window)
 
     # ----------------------------------------------------------------------------------------
@@ -277,7 +311,7 @@ class DataGenerator:#(iter):
             return len(self.data)
 
     # ----------------------------------------------------------------------------------------
-    def get_batch_generator(self, batch_size = 193):
+    def get_batch_generator(self, batch_size = 192):
         # TODO Doesnt match with num_of_samples('train')
         def _generator(stream):
             batch_items = []
