@@ -30,22 +30,12 @@ prev_image_array = None
 last_steering = 0;
 SMOOTH_STEERING = True
 alpha = 2.5
+target_speed = 10
 
 # <<<<<<<<<<<<<<<<<<<<<
 #normalize = SDRegressionModel.model_architecture("commaAI")['normalizer'];
 normalize = SDRegressionModel.model_architecture("commaAI_modified")['normalizer'];
 # <<<<<<<<<<<<<<<<<<<<<
-
-# TODO: USE normalizer from model
-#def preprocess_img(img):
-#    # Model input: 128x128x3 YUV normalized!
-#    img = img.copy();
-#    if img.shape != (128,128)
-#        img = cv2.resize(img, (128, 128))
-#    img = img.astype(float) / 255.0
-#    img = self_driving_car.yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
-#    img[:,:,0] = img[:,:,0] - 0.5;      # remove mean
-#    return img
 
 @sio.on('telemetry')
 def telemetry(sid, data):
@@ -61,24 +51,17 @@ def telemetry(sid, data):
         imgString = data["image"]
         image = Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image)
-#        image_array = preprocess_img( image_array );
         image_array = normalize( image_array );
 
-        #try:
-        if SMOOTH_STEERING:
-            with tf.device("/cpu:0"):
+        with tf.device("/cpu:0"):
+            if SMOOTH_STEERING:
                 new_steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
-            steering_angle = (1-1/alpha)*last_steering + (1/alpha)*new_steering_angle
-            last_steering = steering_angle;
-        else:
-            steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
-        #except:
-        #    print('!!! Model prediction failed !!!');
-        #    print(sys.exc_info()[0])
-        #    steering_angle = 0
-#        steering_angle = steering_angle * 1.3;
+                steering_angle = (1-1/alpha)*last_steering + (1/alpha)*new_steering_angle
+                last_steering = steering_angle;
+            else:
+                steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
 
-        throttle = 0.12
+        throttle = target_speed / 100
         print("predicted steering = {}, throttle = {}".format(steering_angle, throttle))
         send_control(steering_angle, throttle)
 
