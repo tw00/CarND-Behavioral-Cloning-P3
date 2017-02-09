@@ -159,14 +159,19 @@ class SDRegressionModel():
         model.add(LeakyReLU())
         model.add(Convolution2D(4, 2, 2, subsample=(2, 2), border_mode="same"))
         model.add(LeakyReLU())
-        model.add(MaxPooling2D())
+#        model.add(MaxPooling2D()) # ENTFERNT
         model.add(Flatten())
         #model.add(Dense(256))
         #model.add(Dense(64))
+#        model.add(Dropout(.2))  # NEU
+#        model.add(LeakyReLU())  # NEU
         model.add(Dense(128))
         model.add(Dropout(.5))
         model.add(LeakyReLU())
         model.add(Dense(32))
+        model.add(Dropout(.2))
+#        model.add(LeakyReLU()) # NEU 2
+#        model.add(Dense(10))   # NEU 2
         model.add(LeakyReLU())
         model.add(Dense(1))
 
