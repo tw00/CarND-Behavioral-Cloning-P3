@@ -16,12 +16,13 @@ from keras.layers.core import Activation
 from keras.layers.convolutional import Convolution2D, Cropping2D
 from keras.layers.pooling import MaxPooling2D
 from keras.layers.normalization import BatchNormalization
+from keras.layers.advanced_activations import LeakyReLU
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
 #from keras import callbacks
 
-from self_driving_car import yuv_colorspace # TWE
+from self_driving_car import yuv_colorspace
 
 class SDRegressionModel():
 
@@ -34,6 +35,10 @@ class SDRegressionModel():
         elif model == "commaAI_modified":
             return {'name': "commaAI_modified",
                     'model': SDRegressionModel.model_commaAI_modified(),
+                    'normalizer': SDRegressionModel.normalize}
+        elif model == "simple":
+            return {'name': "simple",
+                    'model': SDRegressionModel.model_simple(),
                     'normalizer': SDRegressionModel.normalize}
         else: print("model %s not found" % model);
 
@@ -67,7 +72,7 @@ class SDRegressionModel():
     def model_crop():
         model = Sequential()
         model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(128,128,3)))
-        model.compile(optimizer="adam", loss="mse", metrics=['accuracy'])
+        model.compile(optimizer="adam", loss="mse")
         return model
 
     # ----------------------------------------------------------------------------------------
@@ -118,6 +123,7 @@ class SDRegressionModel():
         model.add(ELU())
         with tf.name_scope('conv2D_3'):
             model.add(Convolution2D(64, 5, 5, subsample=(4, 4), border_mode="same"))
+        model.add(MaxPooling2D())
         model.add(Flatten())
         if use_dropout: # NEU
             model.add(Dropout(.2)) # NEU
@@ -131,7 +137,7 @@ class SDRegressionModel():
         model.add(Dense(1))
 
         # TODO: LR = 0.0001
-        model.compile(optimizer="adam", loss="mse", metrics=['accuracy'])
+        model.compile(optimizer="adam", loss="mse")
         # optimizer = Adam(lr=learning_rate)
         # model.compile(loss='mse', optimizer=optimizer, metrics=['accuracy'])
         # model.summary()
@@ -139,6 +145,39 @@ class SDRegressionModel():
         return model
 
     # ----------------------------------------------------------------------------------------
+    def model_simple():
+        # Input 128x128x3 YUV normalized!
+
+        model = Sequential()
+        model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(128,128,3)))
+        model.add(Convolution2D(32, 2, 2, subsample=(2, 2), border_mode="same"))
+        model.add(LeakyReLU())
+        model.add(Convolution2D(64, 2, 2, subsample=(2, 2), border_mode="same"))
+        model.add(LeakyReLU())
+        model.add(MaxPooling2D())
+        model.add(Convolution2D(2, 2, 2, subsample=(2, 2), border_mode="same"))
+        model.add(LeakyReLU())
+        model.add(Convolution2D(4, 2, 2, subsample=(2, 2), border_mode="same"))
+        model.add(LeakyReLU())
+#        model.add(MaxPooling2D()) # ENTFERNT
+        model.add(Flatten())
+        #model.add(Dense(256))
+        #model.add(Dense(64))
+#        model.add(Dropout(.2))  # NEU
+#        model.add(LeakyReLU())  # NEU
+        model.add(Dense(128))
+        model.add(Dropout(.5))
+        model.add(LeakyReLU())
+        model.add(Dense(32))
+        model.add(Dropout(.2))
+#        model.add(LeakyReLU()) # NEU 2
+#        model.add(Dense(10))   # NEU 2
+        model.add(LeakyReLU())
+        model.add(Dense(1))
+
+        model.compile(optimizer="adam", loss="mse")
+        return model
+
     def __init__(self, model = 'commaAI_modified', basepath = '/mnt/models/'):
         model_info      = SDRegressionModel.model_architecture(model)
         self.model      = model_info['model'];
@@ -164,7 +203,7 @@ class SDRegressionModel():
             self.restore_model(path)
 
     # ----------------------------------------------------------------------------------------
-    def train_generator( self, datagen, session_name, nb_epoch = 10, lr = 0):
+    def train_generator( self, datagen, session_name, nb_epoch = 10, lr = 0, samples_per_epoch = 0):
         model = self.model;
         self._last_session_name = session_name;
         datagen.normalizer = self.normalizer
@@ -179,6 +218,8 @@ class SDRegressionModel():
             os.mkdir(self.basepath + "/" + self.modelname + "/weights/" + session_name );
         if not os.path.exists(self.basepath + "/" + self.modelname + "/tb_log"):
             os.mkdir(self.basepath + "/" + self.modelname + "/tb_log" );
+        if samples_per_epoch == 0:
+            samples_per_epoch = datagen.num_of_samples('train');
 
         checkpoint_callback = ModelCheckpoint(self.basepath + "/" + self.modelname + "/weights/" +
                                               session_name + "/weights.{epoch:02d}-{val_loss:.4f}.hdf5", verbose=1);
@@ -192,7 +233,7 @@ class SDRegressionModel():
         # Fit the model on the batches generated datage generator
         with tf.name_scope('train'):
             history = model.fit_generator(gen_train,
-                            samples_per_epoch=datagen.num_of_samples('train'),
+                            samples_per_epoch=samples_per_epoch,
                             nb_epoch=nb_epoch,
                             validation_data=valid_data,
                             callbacks=[checkpoint_callback, tensorboard_callback]);
