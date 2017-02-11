@@ -73,6 +73,8 @@ class SDRegressionModel():
         return img
 
     def no_normalize(img):
+        if img.shape != (192,192):
+            img = cv2.resize(img, (192, 192))
         return img
 
     # ----------------------------------------------------------------------------------------
@@ -188,8 +190,8 @@ class SDRegressionModel():
     def model_udacity():
         # Input RAW
         model = Sequential()
-        model.add(Lambda( lambda x: x / 255.0 - 0.5, input_shape=(128,128,3) ))
-        model.add(Cropping2D(cropping=((70,25),(0,0))))
+        model.add(Lambda( lambda x: x / 255.0 - 0.5, input_shape=(192,192,3) ))
+        model.add(Cropping2D(cropping=((65,20),(0,0))))
         model.add(Convolution2D(6, 5, 5, activation="relu"))
         model.add(MaxPooling2D())
         model.add(Convolution2D(16, 5, 5, activation="relu"))

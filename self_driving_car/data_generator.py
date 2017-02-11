@@ -19,8 +19,8 @@ class DataPreprocessor:
         and a training data base (index.pkl)
     """
     # orginal size: 320x160 RGB 8-bit
-    IMG_W = 128;
-    IMG_H = 128;
+    IMG_W = 192;
+    IMG_H = 192;
     steering_offset = 0; # done later...
 
     # ----------------------------------------------------------------------------------------
@@ -332,6 +332,7 @@ class DataGenerator:#(iter):
 
     # ----------------------------------------------------------------------------------------
     def get_valid_data(self):
+        # TODO: nur mod_identity berücksichtigen
         valid_rows = self.data[self.data['is_valid'] == True]
         batch_items = []
         for i, row in valid_rows.iterrows():
