@@ -40,6 +40,10 @@ class SDRegressionModel():
             return {'name': "simple",
                     'model': SDRegressionModel.model_simple(),
                     'normalizer': SDRegressionModel.normalize}
+        elif model == "udacity":
+            return {'name': "udacity",
+                    'model': SDRegressionModel.model_udacity(),
+                    'normalizer': SDRegressionModel.no_normalize}
         else: print("model %s not found" % model);
 
     # ----------------------------------------------------------------------------------------
@@ -66,6 +70,9 @@ class SDRegressionModel():
 #        img = img.astype(float) / 255.0
 #        img = yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
 #        img = img.astype * 255
+        return img
+
+    def no_normalize(img):
         return img
 
     # ----------------------------------------------------------------------------------------
@@ -173,6 +180,23 @@ class SDRegressionModel():
 #        model.add(LeakyReLU()) # NEU 2
 #        model.add(Dense(10))   # NEU 2
         model.add(LeakyReLU())
+        model.add(Dense(1))
+
+        model.compile(optimizer="adam", loss="mse")
+        return model
+
+    def model_udacity():
+        # Input RAW
+        model = Sequential()
+        model.add(Lambda( lambda x: x / 255.0 - 0.5, input_shape=(128,128,3) ))
+        model.add(Cropping2D(cropping=((70,25),(0,0))))
+        model.add(Convolution2D(6, 5, 5, activation="relu"))
+        model.add(MaxPooling2D())
+        model.add(Convolution2D(16, 5, 5, activation="relu"))
+        model.add(MaxPooling2D())
+        model.add(Flatten())
+        model.add(Dense(120))
+        model.add(Dense(84))
         model.add(Dense(1))
 
         model.compile(optimizer="adam", loss="mse")

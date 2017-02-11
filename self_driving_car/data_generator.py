@@ -288,6 +288,11 @@ class DataGenerator:#(iter):
         self.data.loc[self.data['filter'] == mod, ('is_train', 'is_valid')] = False;
 
     # ----------------------------------------------------------------------------------------
+    def deactivate_cam(self, cam):
+        # L, R, C
+        self.data.loc[self.data['cam'] == cam, ('is_train', 'is_valid')] = False;
+
+    # ----------------------------------------------------------------------------------------
     def split(self, valid_size=0.1):
         sLength = len(self.data)
         assert valid_size > 0 and valid_size < 1, "Invalid validation size"
