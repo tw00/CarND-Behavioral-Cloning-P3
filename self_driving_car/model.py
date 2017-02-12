@@ -4,6 +4,7 @@ import os
 import pickle
 import sys
 import cv2
+import numpy as np
 
 # Fix error with TF and Keras
 import tensorflow as tf
@@ -23,7 +24,8 @@ from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
 #from keras import callbacks
 
-from self_driving_car import yuv_colorspace
+#from self_driving_car import yuv_colorspace
+from . import yuv_colorspace
 import matplotlib.pyplot as plt
 
 class SDRegressionModel():
@@ -73,7 +75,7 @@ class SDRegressionModel():
     def denormalize(img):
         img = img.copy()
         img[:,:,0] = img[:,:,0] + 0.5;
-        img = self_driving_car.yuv_colorspace.yuv2rgb(img)
+        img = yuv_colorspace.yuv2rgb(img)
         img = img * 255
         return img.astype(np.uint8)
 
@@ -88,8 +90,10 @@ class SDRegressionModel():
 
     def normalize_comma(img):
         img = img.copy();
-        if img.shape != (160,320):
-            img = cv2.resize(img, (160, 320))
+        #if img.shape != (160,320):
+        #    img = cv2.resize(img, (160, 320))
+        if img.shape != (192,192):
+            img = cv2.resize(img, (192, 192))
 #        img = img.astype(float) / 255.0
 #        img = yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
 #        img = img.astype * 255
@@ -109,7 +113,8 @@ class SDRegressionModel():
 
     # ----------------------------------------------------------------------------------------
     def model_commaAI():
-        ch, row, col = 3, 320, 160  # camera format
+        #ch, row, col = 3, 320, 160  # camera format
+        ch, row, col = 3, 192, 192  # camera format
         model = Sequential()
         model.add(Lambda(lambda x: x/127.5 - 1.,
         input_shape=(row, col, ch),
@@ -237,19 +242,22 @@ class SDRegressionModel():
 
     # ----------------------------------------------------------------------------------------
     def model_simple3():
+        # NEU: he_normal
+        # NEU: 256 fc layer
         model = Sequential()
         model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(128,128,3)))
-        model.add(Convolution2D(16, 4, 4, subsample=(2, 2), border_mode="same"))
+        model.add(Convolution2D(16, 4, 4, subsample=(2, 2), border_mode="same", init='he_normal'))
         model.add(LeakyReLU())
-        model.add(Convolution2D(16, 4, 4, subsample=(2, 2), border_mode="same"))
+        model.add(Convolution2D(16, 4, 4, subsample=(2, 2), border_mode="same", init='he_normal'))
         model.add(LeakyReLU())
         model.add(MaxPooling2D())
-        model.add(Convolution2D(16, 8, 8, subsample=(2, 2), border_mode="same"))
+        model.add(Convolution2D(16, 8, 8, subsample=(2, 2), border_mode="same", init='he_normal'))
         model.add(LeakyReLU())
         model.add(Flatten())
         model.add(LeakyReLU())
         model.add(Dropout(.2))
-        model.add(Dense(128))
+        #model.add(Dense(128))
+        model.add(Dense(256)) # NEW
         model.add(Dropout(.5))
         model.add(LeakyReLU())
         model.add(Dense(32))
@@ -262,11 +270,11 @@ class SDRegressionModel():
     def model_simple4():
         model = Sequential()
         model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(128,128,3)))
-        model.add(Convolution2D(16, 8, 8, subsample=(4, 4), border_mode="same"))
+        model.add(Convolution2D(16, 8, 8, subsample=(4, 4), border_mode="same", init='he_normal'))
         model.add(ELU())
-        model.add(Convolution2D(32, 5, 5, subsample=(2, 2), border_mode="same"))
+        model.add(Convolution2D(32, 5, 5, subsample=(2, 2), border_mode="same", init='he_normal'))
         model.add(ELU())
-        model.add(Convolution2D(64, 5, 5, subsample=(2, 2), border_mode="same"))
+        model.add(Convolution2D(64, 5, 5, subsample=(2, 2), border_mode="same", init='he_normal'))
         model.add(MaxPooling2D())
         model.add(Flatten())
         model.add(Dropout(.2))
@@ -276,7 +284,7 @@ class SDRegressionModel():
         model.add(ELU())
         model.add(Dense(1))
 
-        model.compile(optimizer="nadam", loss="mse")
+        model.compile(optimizer="adam", loss="mse")
         return model
 
     # ----------------------------------------------------------------------------------------
