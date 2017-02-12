@@ -235,6 +235,7 @@ class SDRegressionModel():
         datagen.normalizer = self.normalizer
 
         if not lr == 0:
+            print("setting learning rate to %f" % lr );
             model.optimizer.lr.assign(lr);
         if not os.path.exists(self.basepath + "/" + self.modelname):
             os.mkdir(self.basepath + "/" + self.modelname );
