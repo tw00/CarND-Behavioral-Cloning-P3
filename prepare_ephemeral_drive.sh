@@ -19,6 +19,9 @@ free -m
 #
 source activate carnd-term1
 ./run_postprocess.py --dataset dataset1_udacity
-./run_postprocess.py --dataset dataset2_twe_one_lap
-./run_postprocess.py --dataset dataset3_ssz_one_lap
+#./run_postprocess.py --dataset dataset2_twe_one_lap
+#./run_postprocess.py --dataset dataset3_ssz_one_lap
 ./run_postprocess.py --dataset dataset4_beta_sim
+./run_postprocess.py --dataset dataset5_beta_backwards
+./run_postprocess.py --dataset dataset6_curve2A
+./run_postprocess.py --dataset dataset7_curve2B
