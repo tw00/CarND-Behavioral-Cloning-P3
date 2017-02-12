@@ -21,3 +21,4 @@ source activate carnd-term1
 ./run_postprocess.py --dataset dataset1_udacity
 ./run_postprocess.py --dataset dataset2_twe_one_lap
 ./run_postprocess.py --dataset dataset3_ssz_one_lap
+./run_postprocess.py --dataset dataset4_beta_sim

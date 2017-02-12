@@ -22,7 +22,7 @@ from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
 #from keras import callbacks
 
-from self_driving_car import yuv_colorspace
+#from self_driving_car import yuv_colorspace
 
 class SDRegressionModel():
 
@@ -40,6 +40,10 @@ class SDRegressionModel():
             return {'name': "simple",
                     'model': SDRegressionModel.model_simple(),
                     'normalizer': SDRegressionModel.normalize}
+        elif model == "simple2":
+            return {'name': "simple2",
+                    'model': SDRegressionModel.model_simple2(),
+                    'normalizer': SDRegressionModel.normalize2}
         elif model == "udacity":
             return {'name': "udacity",
                     'model': SDRegressionModel.model_udacity(),
@@ -62,6 +66,15 @@ class SDRegressionModel():
         img = self_driving_car.yuv_colorspace.yuv2rgb(img)
         img = img * 255
         return img.astype(np.uint8)
+
+    def normalize2(img):
+        img = img.copy();
+        if img.shape != (192,192):
+            img = cv2.resize(img, (192, 192))
+        img = img.astype(float) / 255.0
+        img = yuv_colorspace.rgb2yuv(img)   # convert to YUV colorspace
+        img[:,:,0] = img[:,:,0] - 0.5;      # remove mean
+        return img
 
     def normalize_comma(img):
         img = img.copy();
@@ -188,11 +201,36 @@ class SDRegressionModel():
         model.compile(optimizer="adam", loss="mse")
         return model
 
+    # ----------------------------------------------------------------------------------------
+    def model_simple2():
+        model = Sequential()
+        model.add(Cropping2D(cropping=((65,20),(0,0)), input_shape=(192,192,3)))
+        model.add(Convolution2D(24, 5, 5, subsample=(2, 2), border_mode="same"))
+        model.add(LeakyReLU())
+        model.add(Convolution2D(32, 5, 5, subsample=(2, 2), border_mode="same"))
+        model.add(LeakyReLU())
+        model.add(MaxPooling2D())
+        model.add(Convolution2D(64, 5, 5, subsample=(2, 2), border_mode="same"))
+        model.add(LeakyReLU())
+        model.add(Convolution2D(64, 3, 3, subsample=(2, 2), border_mode="same"))
+        model.add(LeakyReLU())
+        model.add(Flatten())
+        model.add(Dense(128))
+        model.add(Dropout(.5))
+        model.add(LeakyReLU())
+        model.add(Dense(64))
+        model.add(Dropout(.2))
+        model.add(Dense(10))
+        model.add(Dense(1))
+
+        model.compile(optimizer="adam", loss="mse")
+        return model
+
     def model_udacity():
         # Input RAW
         model = Sequential()
         model.add(Lambda( lambda x: x / 255.0 - 0.5, input_shape=(192,192,3) ))
-        model.add(Cropping2D(cropping=((70,25),(0,0))))
+        model.add(Cropping2D(cropping=((65,20),(0,0))))
         model.add(Convolution2D(6, 5, 5, activation="relu"))
         model.add(MaxPooling2D())
         model.add(Convolution2D(16, 5, 5, activation="relu"))
@@ -236,6 +274,7 @@ class SDRegressionModel():
         datagen.normalizer = self.normalizer
 
         if not lr == 0:
+            print("setting learning rate to %f" % lr );
             model.optimizer.lr.assign(lr);
         if not os.path.exists(self.basepath + "/" + self.modelname):
             os.mkdir(self.basepath + "/" + self.modelname );
@@ -266,6 +305,12 @@ class SDRegressionModel():
                             callbacks=[checkpoint_callback, tensorboard_callback]);
             # TODO: Save trainig history
         self._history = history;
+
+    # ----------------------------------------------------------------------------------------
+    def load_weights(self, session_name, epoch):
+        path = self.basepath + "/" + self.modelname + "/weights/" + session_name + "/";
+        result = [e for e in os.listdir(path) if e.startswith('weights.%02d-' % epoch)]
+        model.load_weights( path + result[0] );
 
     # ----------------------------------------------------------------------------------------
     def save_history(self):

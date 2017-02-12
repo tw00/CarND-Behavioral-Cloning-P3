@@ -9,6 +9,7 @@ import pickle
 import cv2
 import csv
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from self_driving_car import yuv_colorspace # TWE
 
@@ -19,8 +20,8 @@ class DataPreprocessor:
         and a training data base (index.pkl)
     """
     # orginal size: 320x160 RGB 8-bit
-    IMG_W = 128;
-    IMG_H = 128;
+    IMG_W = 192;
+    IMG_H = 192;
     steering_offset = 0; # done later...
 
     # ----------------------------------------------------------------------------------------
@@ -316,7 +317,36 @@ class DataGenerator:#(iter):
             return len(self.data)
 
     # ----------------------------------------------------------------------------------------
-    def get_batch_generator(self, batch_size = 192):
+    def plot_stats( self ):
+        x1 = self.data['steering'].values
+        x2 = self.data[self.data['is_train'] == True]['steering'].values
+        x3 = self.data[self.data['is_valid'] == True]['steering'].values
+
+        print("Number of samples:           ", self.num_of_samples('all'))
+        print("Number of training samples:  ", self.num_of_samples('train'))
+        print("Number of validation samples:", self.num_of_samples('valid'))
+
+        # plot histogram of the data
+        fig = plt.figure(figsize=(18,4))
+        plt.subplot(1,3,1)
+        plt.title(r'Histogram of steeringe angles (all) (m = %.4f)' % np.mean(x1)); plt.grid(zorder=0)
+        n, bins, patches = plt.hist(x1, 29, range=[-0.35, 0.35], normed=1, edgecolor='black', facecolor='green', alpha=0.75)
+        plt.xlabel('Steering'); plt.ylabel('Probability')
+        plt.xlim((-0.35,0.35)); plt.ylim((0,10));
+        plt.subplot(1,3,2)
+        plt.title(r'Histogram of steeringe angles (train) (m = %.4f)' % np.mean(x2)); plt.grid(True);
+        n, bins, patches = plt.hist(x2, 29, range=[-0.35, 0.35], normed=1, edgecolor='black', facecolor='red', alpha=0.75)
+        plt.xlabel('Steering'); plt.ylabel('Probability')
+        plt.xlim((-0.35,0.35)); plt.ylim((0,10));
+        plt.subplot(1,3,3)
+        plt.title(r'Histogram of steeringe angles (valid) (m = %.4f)' % np.mean(x3)); plt.grid(True)
+        n, bins, patches = plt.hist(x3, 29, range=[-0.35, 0.35], normed=1, edgecolor='black', facecolor='blue', alpha=0.75)
+        plt.xlabel('Steering'); plt.ylabel('Probability')
+        plt.xlim((-0.35,0.35)); plt.ylim((0,10)); 
+        plt.show()
+
+    # ----------------------------------------------------------------------------------------
+    def get_batch_generator(self, batch_size = 256):
         # TODO Doesnt match with num_of_samples('train')
         def _generator(stream):
             batch_items = []
@@ -332,6 +362,7 @@ class DataGenerator:#(iter):
 
     # ----------------------------------------------------------------------------------------
     def get_valid_data(self):
+        # TODO: nur mod_identity berücksichtigen
         valid_rows = self.data[self.data['is_valid'] == True]
         batch_items = []
         for i, row in valid_rows.iterrows():
