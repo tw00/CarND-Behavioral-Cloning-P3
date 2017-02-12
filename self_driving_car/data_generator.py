@@ -200,6 +200,8 @@ class DataGenerator:#(iter):
         self.size        = 0;
         self.index       = 1;
         self.basepath    = "./"
+        self.img_loaded_to_ram = False;
+        self.img_cache   = {}
 
     # ----------------------------------------------------------------------------------------
     def add_dataset(self, dataset, basepath = '/mnt/data/'):
@@ -213,6 +215,19 @@ class DataGenerator:#(iter):
             self.data = pd.concat([self.data, df], ignore_index=True)
         else:
             self.data = df;
+
+    # ----------------------------------------------------------------------------------------
+    def load_img_to_ram(self):
+        print('loading images to ram...');
+        valid_rows = self.data[self.data['is_active']]
+        self.img_loaded_to_ram = False;
+        self.img_cache = dict();
+        for i, row in valid_rows.iterrows():
+            name = row['img']
+            img = self.read_img(name);
+            self.img_cache[name] = img;
+        self.img_loaded_to_ram = True;
+        print('all images loaded to ram');
 
     # ----------------------------------------------------------------------------------------
     def auto_prepare(self, filter_data = True, smooth_steering = True, shuffle = True):
@@ -278,22 +293,6 @@ class DataGenerator:#(iter):
         print("shuffled data")
 
     # ----------------------------------------------------------------------------------------
-    def correct_camera_steering(self, offset = 0.0):
-        self.data.loc[self.data['cam'] == 'R', 'steering'] -= offset;
-        self.data.loc[self.data['cam'] == 'L', 'steering'] += offset;
-        print("steering angle corrected by +/- %f" % offset)
-
-    # ----------------------------------------------------------------------------------------
-    def deactivate_mod(self, mod):
-        # mod_identity, mod_lighting, mod_blur, mod_flip, mod_shadow,
-        self.data.loc[self.data['filter'] == mod, ('is_train', 'is_valid')] = False;
-
-    # ----------------------------------------------------------------------------------------
-    def deactivate_cam(self, cam):
-        # L, R, C
-        self.data.loc[self.data['cam'] == cam, ('is_train', 'is_valid')] = False;
-
-    # ----------------------------------------------------------------------------------------
     def split(self, valid_size=0.1):
         sLength = len(self.data)
         assert valid_size > 0 and valid_size < 1, "Invalid validation size"
@@ -302,16 +301,49 @@ class DataGenerator:#(iter):
         is_train[0:sLengthValid] = False
         self.data['is_train'] = is_train;
         self.data['is_valid'] = np.logical_not(is_train);
+        self.data['is_active'] = False;
+        # activate mod_identity by default
+        self.activate_mod('mod_identity', dset='valid')
+        self.activate_mod('mod_identity', dset='train')
         print("split data into %d training sample and %d validation samples" %
               (self.num_of_samples('train'), self.num_of_samples('valid')))
         return
 
     # ----------------------------------------------------------------------------------------
+    def correct_camera_steering(self, offset = 0.0):
+        self.data.loc[self.data['cam'] == 'R', 'steering'] -= offset;
+        self.data.loc[self.data['cam'] == 'L', 'steering'] += offset;
+        print("steering angle corrected by +/- %f" % offset)
+
+    # ----------------------------------------------------------------------------------------
+#    def deactivate_mod(self, mod):
+#        # mod_identity, mod_lighting, mod_blur, mod_flip, mod_shadow,
+#        self.data.loc[self.data['filter'] == mod, 'is_active'] = False;
+
+    # ----------------------------------------------------------------------------------------
+    def activate_mod(self, mod, dset='train'):
+        # INFO: Activates all cams
+        # mod_identity, mod_lighting, mod_blur, mod_flip, mod_shadow,
+        self.data.loc[np.logical_and(self.data['filter'] == mod, self.data['is_'+dset]), 'is_active'] = True;
+
+    # ----------------------------------------------------------------------------------------
+    def deactivate_cam(self, cam):
+        # L, R, C
+        self.data.loc[self.data['cam'] == cam, 'is_active'] = False;
+
+    # ----------------------------------------------------------------------------------------
+#    def activate_cam(self, mod, dset = 'train'):
+#        # L, R, C
+#        self.data.loc[np.logical_and(self.data['cam'] == cam, self.data['is_'+dset]), 'is_active'] = True;
+
+    # ----------------------------------------------------------------------------------------
     def num_of_samples(self, sample_set='train'): # sample_set = {all, train, valid}
         if sample_set == 'train':
-            return np.sum(self.data['is_train'] == True)
+            return np.sum(np.logical_and(self.data['is_active'], self.data['is_train'] ) == True)
         elif sample_set == 'valid':
-            return np.sum(self.data['is_valid'] == True)
+            return np.sum(np.logical_and(self.data['is_active'], self.data['is_valid'] ) == True)
+        elif sample_set == 'active':
+            return np.sum(self.data['is_active'] == True)
         elif sample_set == 'all':
             # N = self.data.shape[0]
             return len(self.data)
@@ -319,10 +351,11 @@ class DataGenerator:#(iter):
     # ----------------------------------------------------------------------------------------
     def plot_stats( self ):
         x1 = self.data['steering'].values
-        x2 = self.data[self.data['is_train'] == True]['steering'].values
-        x3 = self.data[self.data['is_valid'] == True]['steering'].values
+        x2 = self.data[np.logical_and(self.data['is_train'], self.data['is_active'])]['steering'].values
+        x3 = self.data[np.logical_and(self.data['is_valid'], self.data['is_active'])]['steering'].values
 
         print("Number of samples:           ", self.num_of_samples('all'))
+        print("Number of active sample:     ", self.num_of_samples('active'))
         print("Number of training samples:  ", self.num_of_samples('train'))
         print("Number of validation samples:", self.num_of_samples('valid'))
 
@@ -346,7 +379,7 @@ class DataGenerator:#(iter):
         plt.show()
 
     # ----------------------------------------------------------------------------------------
-    def get_batch_generator(self, batch_size = 256):
+    def get_batch_generator(self, batch_size = 128):
         # TODO Doesnt match with num_of_samples('train')
         def _generator(stream):
             batch_items = []
@@ -359,14 +392,13 @@ class DataGenerator:#(iter):
                     batch_items = batch_items[batch_size:]
         return _generator(self)
 
-
     # ----------------------------------------------------------------------------------------
     def get_valid_data(self):
         # TODO: nur mod_identity berücksichtigen
-        valid_rows = self.data[self.data['is_valid'] == True]
+        valid_rows = self.data[np.logical_and(self.data['is_active'], self.data['is_valid'])]
         batch_items = []
         for i, row in valid_rows.iterrows():
-            img = cv2.imread(self.basepath + "/" + row['img'])
+            img = self.read_img(row['img'])
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
 #            img = DataGenerator.normalize(img);
             img = self.normalizer(img);
@@ -379,8 +411,8 @@ class DataGenerator:#(iter):
         # TODO: SELECT BASED ON WEIGHTS!!!!!
         self.index %= self.num_of_samples('train')
         self.index += 1
-        row = self.data[self.data['is_train'] == True].iloc[self.index-1]
-        img = cv2.imread(self.basepath + "/" + row['img'])
+        row = self.data[np.logical_and(self.data['is_active'], self.data['is_train'])].iloc[self.index-1]
+        img = self.read_img(row['img'])
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
         # img = DataGenerator.normalize(img);
         img = self.normalizer(img);
@@ -394,3 +426,10 @@ class DataGenerator:#(iter):
     def reset(self):
         self.index = 1
         return self
+
+    # ----------------------------------------------------------------------------------------
+    def read_img(self, name):
+        if not self.img_loaded_to_ram:
+            return cv2.imread(self.basepath + "/" + name);
+        else:
+            return self.img_cache[name];

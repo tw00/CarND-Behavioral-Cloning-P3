@@ -10,6 +10,7 @@ import tensorflow as tf
 tf.python.control_flow_ops = tf
 
 # Build a model
+import keras.backend as K
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten, Lambda, ELU
 from keras.layers.core import Activation
@@ -22,7 +23,8 @@ from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
 #from keras import callbacks
 
-#from self_driving_car import yuv_colorspace
+from self_driving_car import yuv_colorspace
+import matplotlib.pyplot as plt
 
 class SDRegressionModel():
 
@@ -44,6 +46,14 @@ class SDRegressionModel():
             return {'name': "simple2",
                     'model': SDRegressionModel.model_simple2(),
                     'normalizer': SDRegressionModel.normalize2}
+        elif model == "simple3":
+            return {'name': "simple3",
+                    'model': SDRegressionModel.model_simple3(),
+                    'normalizer': SDRegressionModel.normalize}
+        elif model == "simple4":
+            return {'name': "simple4",
+                    'model': SDRegressionModel.model_simple4(),
+                    'normalizer': SDRegressionModel.normalize}
         elif model == "udacity":
             return {'name': "udacity",
                     'model': SDRegressionModel.model_udacity(),
@@ -225,6 +235,51 @@ class SDRegressionModel():
         model.compile(optimizer="adam", loss="mse")
         return model
 
+    # ----------------------------------------------------------------------------------------
+    def model_simple3():
+        model = Sequential()
+        model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(128,128,3)))
+        model.add(Convolution2D(16, 4, 4, subsample=(2, 2), border_mode="same"))
+        model.add(LeakyReLU())
+        model.add(Convolution2D(16, 4, 4, subsample=(2, 2), border_mode="same"))
+        model.add(LeakyReLU())
+        model.add(MaxPooling2D())
+        model.add(Convolution2D(16, 8, 8, subsample=(2, 2), border_mode="same"))
+        model.add(LeakyReLU())
+        model.add(Flatten())
+        model.add(LeakyReLU())
+        model.add(Dropout(.2))
+        model.add(Dense(128))
+        model.add(Dropout(.5))
+        model.add(LeakyReLU())
+        model.add(Dense(32))
+        model.add(Dense(1))
+
+        model.compile(optimizer="nadam", loss="mse")
+        return model
+
+    # ----------------------------------------------------------------------------------------
+    def model_simple4():
+        model = Sequential()
+        model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(128,128,3)))
+        model.add(Convolution2D(16, 8, 8, subsample=(4, 4), border_mode="same"))
+        model.add(ELU())
+        model.add(Convolution2D(32, 5, 5, subsample=(2, 2), border_mode="same"))
+        model.add(ELU())
+        model.add(Convolution2D(64, 5, 5, subsample=(2, 2), border_mode="same"))
+        model.add(MaxPooling2D())
+        model.add(Flatten())
+        model.add(Dropout(.2))
+        model.add(LeakyReLU())
+        model.add(Dense(512))
+        model.add(Dropout(.5))
+        model.add(ELU())
+        model.add(Dense(1))
+
+        model.compile(optimizer="nadam", loss="mse")
+        return model
+
+    # ----------------------------------------------------------------------------------------
     def model_udacity():
         # Input RAW
         model = Sequential()
@@ -242,6 +297,7 @@ class SDRegressionModel():
         model.compile(optimizer="adam", loss="mse")
         return model
 
+    # ----------------------------------------------------------------------------------------
     def __init__(self, model = 'commaAI_modified', basepath = '/mnt/models/'):
         model_info      = SDRegressionModel.model_architecture(model)
         self.model      = model_info['model'];
@@ -275,6 +331,7 @@ class SDRegressionModel():
         if not lr == 0:
             print("setting learning rate to %f" % lr );
             model.optimizer.lr.assign(lr);
+            K.set_value(model.optimizer.lr, lr)
         if not os.path.exists(self.basepath + "/" + self.modelname):
             os.mkdir(self.basepath + "/" + self.modelname );
         if not os.path.exists(self.basepath + "/" + self.modelname + "/weights"):
@@ -309,7 +366,7 @@ class SDRegressionModel():
     def load_weights(self, session_name, epoch):
         path = self.basepath + "/" + self.modelname + "/weights/" + session_name + "/";
         result = [e for e in os.listdir(path) if e.startswith('weights.%02d-' % epoch)]
-        model.load_weights( path + result[0] );
+        self.model.load_weights( path + result[0] );
 
     # ----------------------------------------------------------------------------------------
     def save_history(self):
@@ -342,6 +399,17 @@ class SDRegressionModel():
         self.model.load_weights(weight_file)
         return self
         model.load_weights("./output/model.h5")
+
+    # ----------------------------------------------------------------------------------------
+    def plot_history(self):
+        history = self._history
+        plt.figure()
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.legend(['loss','val_loss'])
+        plt.xlabel('#epoch'); plt.ylabel('MSE')
+        plt.grid(True)
+        plt.show()
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
