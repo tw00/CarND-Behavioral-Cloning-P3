@@ -25,3 +25,8 @@ source activate carnd-term1
 ./run_postprocess.py --dataset dataset5_beta_backwards
 ./run_postprocess.py --dataset dataset6_curve2A
 ./run_postprocess.py --dataset dataset7_curve2B
+./run_postprocess.py --dataset dataset7_curve2B
+./run_postprocess.py --dataset dataset8_curve3A
+./run_postprocess.py --dataset dataset8_curve3B
+./run_postprocess.py --dataset dataset8_curve3C
+./run_postprocess.py --dataset dataset8_curve3D
