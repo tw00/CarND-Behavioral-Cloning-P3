@@ -185,7 +185,7 @@ class DataPreprocessor:
         return df
 
 # ============================================================================================
-class DataGenerator:#(iter):
+class DataGenerator:
     """
     This class serves the following purposes:
         Generate training and validation data on the fly
@@ -380,7 +380,7 @@ class DataGenerator:#(iter):
 
     # ----------------------------------------------------------------------------------------
     def get_batch_generator(self, batch_size = 128):
-        # TODO Doesnt match with num_of_samples('train')
+        # TODO Doesn't match with num_of_samples('train')
         def _generator(stream):
             batch_items = []
             for i, row in enumerate(stream):
@@ -394,7 +394,7 @@ class DataGenerator:#(iter):
 
     # ----------------------------------------------------------------------------------------
     def get_valid_data(self):
-        # TODO: nur mod_identity berücksichtigen
+        # TODO: consider mod_identity only
         valid_rows = self.data[np.logical_and(self.data['is_active'], self.data['is_valid'])]
         batch_items = []
         for i, row in valid_rows.iterrows():
@@ -408,7 +408,7 @@ class DataGenerator:#(iter):
 
     # ----------------------------------------------------------------------------------------
     def __next__(self):
-        # TODO: SELECT BASED ON WEIGHTS!!!!!
+        # TODO: select based on weight
         self.index %= self.num_of_samples('train')
         self.index += 1
         row = self.data[np.logical_and(self.data['is_active'], self.data['is_train'])].iloc[self.index-1]

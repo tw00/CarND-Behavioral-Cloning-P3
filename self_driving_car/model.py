@@ -163,8 +163,8 @@ class SDRegressionModel():
             model.add(Convolution2D(64, 5, 5, subsample=(4, 4), border_mode="same"))
         model.add(MaxPooling2D())
         model.add(Flatten())
-        if use_dropout: # NEU
-            model.add(Dropout(.2)) # NEU
+        if use_dropout: # NEW
+            model.add(Dropout(.2)) # NEW
         model.add(ELU())
         model.add(Dense(512))
         if use_dropout:
@@ -197,19 +197,19 @@ class SDRegressionModel():
         model.add(LeakyReLU())
         model.add(Convolution2D(4, 2, 2, subsample=(2, 2), border_mode="same"))
         model.add(LeakyReLU())
-#        model.add(MaxPooling2D()) # ENTFERNT
+#        model.add(MaxPooling2D()) # REMOVED
         model.add(Flatten())
         #model.add(Dense(256))
         #model.add(Dense(64))
-#        model.add(Dropout(.2))  # NEU
-#        model.add(LeakyReLU())  # NEU
+#        model.add(Dropout(.2))  # NEW
+#        model.add(LeakyReLU())  # NEW
         model.add(Dense(128))
         model.add(Dropout(.5))
         model.add(LeakyReLU())
         model.add(Dense(32))
         model.add(Dropout(.2))
-#        model.add(LeakyReLU()) # NEU 2
-#        model.add(Dense(10))   # NEU 2
+#        model.add(LeakyReLU()) # NEW 2
+#        model.add(Dense(10))   # NEW 2
         model.add(LeakyReLU())
         model.add(Dense(1))
 
@@ -243,8 +243,8 @@ class SDRegressionModel():
 
     # ----------------------------------------------------------------------------------------
     def model_simple3():
-        # NEU: he_normal
-        # NEU: 256 fc layer
+        # NEW: he_normal
+        # NEW: 256 fc layer
         model = Sequential()
         model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(128,128,3)))
         model.add(Convolution2D(16, 4, 4, subsample=(2, 2), border_mode="same", init='he_normal'))
@@ -356,9 +356,7 @@ class SDRegressionModel():
                                               session_name + "/weights.{epoch:02d}-{val_loss:.4f}.hdf5", verbose=1);
         tensorboard_callback = TensorBoard(log_dir=self.basepath + "/" + self.modelname + "/tb_log/");
 
-#        gen_train = datagen.get_batch_generator('train');
         gen_train = datagen.get_batch_generator();
-#        gen_valid = datagen.get_batch_generator('valid');
         valid_data = datagen.get_valid_data();
 
         # Fit the model on the batches generated datage generator
@@ -368,7 +366,6 @@ class SDRegressionModel():
                             nb_epoch=nb_epoch,
                             validation_data=valid_data,
                             callbacks=[checkpoint_callback, tensorboard_callback]);
-            # TODO: Save trainig history
         self._history = history;
 
     # ----------------------------------------------------------------------------------------
@@ -426,21 +423,3 @@ if __name__ == '__main__':
     else:
         model = SDRegressionModel.model_architecture(sys.argv[1])['model']
         model.summary()
-
-#def checkpoint(filepattern="model.{epoch:02d}.h5"):
-#return ModelCheckpoint(filepattern, save_weights_only=True)
-
-#def preprocess_img(img, fromFile = False, fromDriver = True):
-#    IMG_W = 128
-#    IMG_H = 64
-    #img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-    #img = img.convert('RGB')
-#    img = np.array(img)
-    #print(img);
-    #print(img.shape);
-    #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
-#    img = cv2.resize(img, (IMG_W, IMG_H))
-#    img = img.astype(float)/255.0
-#    img = yuv_colorspace.rgb2yuv(img) # convert to YUV colorspace
-#    img[:,:,0] = img[:,:,0] - 0.5; # remove mean
-#    return img
