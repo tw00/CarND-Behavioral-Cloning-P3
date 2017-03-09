@@ -111,7 +111,7 @@ class SDRegressionModel():
 
     def original_normalize(img):
         img = img.copy();
-        img = img[60:135, : ]
+        img = img[60:135,:]
         img = cv2.resize(img, (200, 66))
         return img
 
@@ -318,20 +318,8 @@ class SDRegressionModel():
 
     # ----------------------------------------------------------------------------------------
     def model_nvidia():
-        """Model based on: http://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf
-        """
-        def resize_images(img):
-            """Returns resized image
-            Cannot be directly used in lambda function
-            as tf is not understood by keras
-            """
-            import tensorflow as tf
-            return tf.image.resize_images(img, (66, 200))
-
         model = Sequential()
-        model.add(Lambda(resize_images, input_shape=(75, 320, 3)))
-#        model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(192,192,3)))
-        model.add(Lambda(lambda x: x/255.-0.5))
+        model.add(Lambda(lambda x: x/255.-0.5, input_shape=(66,200,3)) )
         model.add(Convolution2D(24, 5, 5, border_mode="same", subsample=(2,2), activation="elu"))
         model.add(SpatialDropout2D(0.2))
         model.add(Convolution2D(36, 5, 5, border_mode="same", subsample=(2,2), activation="elu"))

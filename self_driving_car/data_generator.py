@@ -146,8 +146,7 @@ class DataPreprocessor:
                 if camera == 'R': steering_angle = steering_angle - DataPreprocessor.steering_offset;
 
                 #print("loading " + img_path);
-                img = cv2.imread(basepath + "/" + dataset + "/IMG/" + img_path)
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
+                img = plt.imread(basepath + "/" + dataset + "/IMG/" + img_path);
                 img = cv2.resize(img, (self.IMG_W, self.IMG_H))
 
                 for idx, func_filter in self.filter_switcher.items():
@@ -155,8 +154,7 @@ class DataPreprocessor:
 
                     img_path_full = dataset + "/IMG_preprocessed/" + func_filter.__name__ + "_" +  img_path
                     #print("saving:" + img_path_full);
-                    img_new = cv2.cvtColor(img_new, cv2.COLOR_RGB2BGR);
-                    cv2.imwrite(basepath + "/" + img_path_full , img_new)
+                    plt.imsave(basepath + "/" + img_path_full , img_new)
 
                     img_list.append(img_path_full);
                     cam_list.append(camera);
@@ -205,8 +203,6 @@ class DataGenerator:
 
     # ----------------------------------------------------------------------------------------
     def add_dataset(self, dataset, basepath = '/mnt/data/', use_original_data = False):
-        # TODO: Allow csv_file list
-        # Location = r'C:\Users\david\notebooks\births1880.txt'
         self.datasets.append(dataset);
         self.basepath = basepath # HACK
         index_path = basepath + "/" + dataset + "/" + "index";
@@ -406,8 +402,6 @@ class DataGenerator:
         batch_items = []
         for i, row in valid_rows.iterrows():
             img = self.read_img(row['img'])
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
-#            img = DataGenerator.normalize(img);
             img = self.normalizer(img);
             item = (img, row['steering'])
             batch_items.append(item)
@@ -420,8 +414,6 @@ class DataGenerator:
         self.index += 1
         row = self.data[np.logical_and(self.data['is_active'], self.data['is_train'])].iloc[self.index-1]
         img = self.read_img(row['img'])
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # OpenCV does not use RGB, it uses BGR
-        # img = DataGenerator.normalize(img);
         img = self.normalizer(img);
         return (img, row['steering'])
 
@@ -437,6 +429,6 @@ class DataGenerator:
     # ----------------------------------------------------------------------------------------
     def read_img(self, name):
         if not self.img_loaded_to_ram:
-            return cv2.imread(self.basepath + "/" + name);
+            return plt.imread(self.basepath + "/" + name);
         else:
             return self.img_cache[name];
