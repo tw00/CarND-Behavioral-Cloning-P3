@@ -110,7 +110,10 @@ class SDRegressionModel():
         return img
 
     def original_normalize(img):
-        return img[60:135, : ]
+        img = img.copy();
+        img = img[60:135, : ]
+        img = cv2.resize(img, (200, 66))
+        return img
 
     # ----------------------------------------------------------------------------------------
     def model_crop():
