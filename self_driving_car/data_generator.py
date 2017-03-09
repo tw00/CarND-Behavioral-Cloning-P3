@@ -204,13 +204,16 @@ class DataGenerator:
         self.img_cache   = {}
 
     # ----------------------------------------------------------------------------------------
-    def add_dataset(self, dataset, basepath = '/mnt/data/'):
+    def add_dataset(self, dataset, basepath = '/mnt/data/', use_original_data = False):
         # TODO: Allow csv_file list
         # Location = r'C:\Users\david\notebooks\births1880.txt'
         self.datasets.append(dataset);
         self.basepath = basepath # HACK
         index_path = basepath + "/" + dataset + "/" + "index";
         df = pd.read_pickle(index_path + '.pkl')
+        if use_original_data:
+            replacer = lambda x: x.replace('IMG_preprocessed', 'IMG')
+            df.data['img'] = df.data['img'].apply(replacer)
         if isinstance(self.data,pd.DataFrame):
             self.data = pd.concat([self.data, df], ignore_index=True)
         else:
