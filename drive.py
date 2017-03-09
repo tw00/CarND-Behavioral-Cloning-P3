@@ -32,6 +32,8 @@ SMOOTH_STEERING = False
 alpha = 2.5
 target_speed = 14-6
 target_speed = 30
+#target_speed = 18
+target_speed = 9
 steer_factor = 1.00
 
 # <<<<<<<<<<<<<<<<<<<<<
@@ -39,7 +41,8 @@ steer_factor = 1.00
 #normalize = SDRegressionModel.model_architecture("commaAI_modified")['normalizer'];
 #normalize = SDRegressionModel.model_architecture("udacity")['normalizer'];
 #normalize = SDRegressionModel.model_architecture("simple2")['normalizer'];
-normalize = SDRegressionModel.model_architecture("simple")['normalizer'];
+#normalize = SDRegressionModel.model_architecture("simple")['normalizer'];
+normalize = SDRegressionModel.model_architecture("nvidia")['normalizer'];
 # <<<<<<<<<<<<<<<<<<<<<
 
 @sio.on('telemetry')
