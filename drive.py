@@ -30,10 +30,8 @@ prev_image_array = None
 last_steering = 0;
 SMOOTH_STEERING = False
 alpha = 2.5
-target_speed = 14-6
-target_speed = 30
-#target_speed = 18
-target_speed = 9
+target_speed = 18
+#target_speed = 9
 steer_factor = 1.00
 
 # <<<<<<<<<<<<<<<<<<<<<

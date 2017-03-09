@@ -1,7 +1,10 @@
 
-<span style='color:red'>**IMPORTANT INFO**: The current model is not able to fully finish track 1. But since the end of term 1 is approaching, I decided to submit the project anyways. Although the project is fun and I learned a lot, I almost spend 100h on it (as well as paying 150$ to Amazon). I informed my mentor numerous times that I'm stuck with the project, I also consulted the forum, slack and the walkthrough video for more tips, but sadly nothing helped in my case.</span>
-
 # README (Behavioral Cloning Project)
+
+<span style='color:blue'>**NOTE TO REVIEWER:**</span>
+
+<span style='color:blue'>As suggested I implemented the nvidia architecture as well (see model.py, line 320-341). After training the nvidia model, the car is now driving around the first track without leaving it. I also included a video.mp4.
+</span>
 
 # Project structure
 
@@ -24,19 +27,13 @@ Using the Udacity provided simulator (beta) and my drive.py file, the car can be
 python drive.py model.hdf5
 ```
 
-```
-** BEST MODEL SO FAR:** models/simple3/weights/20170213_E1/weights.03-0.0027.hdf5
-** BEST MODEL SO FAR:** models/simple3/weights/20170213_D2/weights.06-0.0034.hdf5
-** BEST MODEL SO FAR:** models/simple3/weights/20170308_XA/weights.05-0.0069.hdf5
-```
-
 # Model Architecture and Training Strategy
 
 ## 1. Finding an appropriate model architecture
 
-I archived the best results with `model_simple3`. This model consists of three convolutional layers with 4x4 and 8x8 filter sizes and depths 16 and three fully connected layers (see `self_driving_car/model.py`, `model_simple3`). The architecture is shown in the following image:
+I archived the best results with `model_nvidia`. This model consists of three convolutional layers with 4x4 and 8x8 filter sizes and depths 16 and three fully connected layers (see `self_driving_car/model.py`, `model_nvidia`). The architecture is shown in the following image:
 
-![alt text](./doc/model_udacity.png)
+![alt text](./doc/images/model_nvidia.png)
 
 The model includes LeakyReLU layers to introduce nonlinearity (model.py lines 251-263).
 The data is normalized in the model using `SDRegressionModel.normalize` (model.py lines 66).
@@ -93,6 +90,7 @@ I repeated this process for different architectures:
 * A modified 2nd simple architecture with more convolutional filters
 * A modified 3rd simple architecture with more fully connected neurons
 * A modified 4th simple architecture more tunable parameters
+* The NVIDIA architecture
 
 The reason why I created different models, was that I believed that I was not able to get a further improvement because the model complexity was too low so the model is not able to capture the complexity of the given task.
 
@@ -145,23 +143,25 @@ The final step was to run the simulator to see how well the car was driving arou
 The model architecture that gives the best results (model.py lines 245 - 268) looks like:
 
 ```python
-model = Sequential()                                                                        
-model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(128,128,3)))                    
-model.add(Convolution2D(16, 4, 4, subsample=(2, 2), border_mode="same", init='he_normal'))  
-model.add(LeakyReLU())                                                                      
-model.add(Convolution2D(16, 4, 4, subsample=(2, 2), border_mode="same", init='he_normal'))  
-model.add(LeakyReLU())                                                                      
-model.add(MaxPooling2D())                                                                   
-model.add(Convolution2D(16, 8, 8, subsample=(2, 2), border_mode="same", init='he_normal'))  
-model.add(LeakyReLU())                                                                      
-model.add(Flatten())                                                                        
-model.add(LeakyReLU())                                                                      
-model.add(Dropout(.2))                                                                      
-model.add(Dense(256))                                                                 
-model.add(Dropout(.5))                                                                      
-model.add(LeakyReLU())                                                                      
-model.add(Dense(32))                                                                        
-model.add(Dense(1))                                                                         
+model = Sequential()
+model.add(Lambda(lambda x: x/255.-0.5, input_shape=(66,200,3)) )
+model.add(Convolution2D(24, 5, 5, border_mode="same", subsample=(2,2), activation="elu"))
+model.add(SpatialDropout2D(0.2))
+model.add(Convolution2D(36, 5, 5, border_mode="same", subsample=(2,2), activation="elu"))
+model.add(SpatialDropout2D(0.2))
+model.add(Convolution2D(48, 5, 5, border_mode="valid", subsample=(2,2), activation="elu"))
+model.add(SpatialDropout2D(0.2))
+model.add(Convolution2D(64, 3, 3, border_mode="valid", activation="elu"))
+model.add(SpatialDropout2D(0.2))
+model.add(Convolution2D(64, 3, 3, border_mode="valid", activation="elu"))
+model.add(SpatialDropout2D(0.2))
+model.add(Flatten())
+model.add(Dropout(0.5))
+model.add(Dense(100, activation="elu"))
+model.add(Dense(50, activation="elu"))
+model.add(Dense(10, activation="elu"))
+model.add(Dropout(0.5))
+model.add(Dense(1))                                                        
 ```
 
 The model consisted of a convolution neural network with the following layers and layer sizes:
@@ -170,43 +170,46 @@ The model consisted of a convolution neural network with the following layers an
 ____________________________________________________________________________________________________
 Layer (type)                     Output Shape          Param #     Connected to                     
 ====================================================================================================
-cropping2d_15 (Cropping2D)       (None, 68, 128, 3)    0           cropping2d_input_2[0][0]         
+lambda_36 (Lambda)               (None, 66, 200, 3)    0           lambda_input_2[0][0]             
 ____________________________________________________________________________________________________
-convolution2d_43 (Convolution2D) (None, 34, 64, 16)    784         cropping2d_15[0][0]              
+convolution2d_96 (Convolution2D) (None, 33, 100, 24)   1824        lambda_36[0][0]                  
 ____________________________________________________________________________________________________
-leakyrelu_71 (LeakyReLU)         (None, 34, 64, 16)    0           convolution2d_43[0][0]           
+spatialdropout2d_96 (SpatialDrop (None, 33, 100, 24)   0           convolution2d_96[0][0]           
 ____________________________________________________________________________________________________
-convolution2d_44 (Convolution2D) (None, 17, 32, 16)    4112        leakyrelu_71[0][0]               
+convolution2d_97 (Convolution2D) (None, 17, 50, 36)    21636       spatialdropout2d_96[0][0]        
 ____________________________________________________________________________________________________
-leakyrelu_72 (LeakyReLU)         (None, 17, 32, 16)    0           convolution2d_44[0][0]           
+spatialdropout2d_97 (SpatialDrop (None, 17, 50, 36)    0           convolution2d_97[0][0]           
 ____________________________________________________________________________________________________
-maxpooling2d_15 (MaxPooling2D)   (None, 8, 16, 16)     0           leakyrelu_72[0][0]               
+convolution2d_98 (Convolution2D) (None, 7, 23, 48)     43248       spatialdropout2d_97[0][0]        
 ____________________________________________________________________________________________________
-convolution2d_45 (Convolution2D) (None, 4, 8, 16)      16400       maxpooling2d_15[0][0]            
+spatialdropout2d_98 (SpatialDrop (None, 7, 23, 48)     0           convolution2d_98[0][0]           
 ____________________________________________________________________________________________________
-leakyrelu_73 (LeakyReLU)         (None, 4, 8, 16)      0           convolution2d_45[0][0]           
+convolution2d_99 (Convolution2D) (None, 5, 21, 64)     27712       spatialdropout2d_98[0][0]        
 ____________________________________________________________________________________________________
-flatten_15 (Flatten)             (None, 512)           0           leakyrelu_73[0][0]               
+spatialdropout2d_99 (SpatialDrop (None, 5, 21, 64)     0           convolution2d_99[0][0]           
 ____________________________________________________________________________________________________
-leakyrelu_74 (LeakyReLU)         (None, 512)           0           flatten_15[0][0]                 
+convolution2d_100 (Convolution2D (None, 3, 19, 64)     36928       spatialdropout2d_99[0][0]        
 ____________________________________________________________________________________________________
-dropout_29 (Dropout)             (None, 512)           0           leakyrelu_74[0][0]               
+spatialdropout2d_100 (SpatialDro (None, 3, 19, 64)     0           convolution2d_100[0][0]          
 ____________________________________________________________________________________________________
-dense_43 (Dense)                 (None, 256)           131328      dropout_29[0][0]                 
+flatten_20 (Flatten)             (None, 3648)          0           spatialdropout2d_100[0][0]       
 ____________________________________________________________________________________________________
-dropout_30 (Dropout)             (None, 256)           0           dense_43[0][0]                   
+dropout_39 (Dropout)             (None, 3648)          0           flatten_20[0][0]                 
 ____________________________________________________________________________________________________
-leakyrelu_75 (LeakyReLU)         (None, 256)           0           dropout_30[0][0]                 
+dense_77 (Dense)                 (None, 100)           364900      dropout_39[0][0]                 
 ____________________________________________________________________________________________________
-dense_44 (Dense)                 (None, 32)            8224        leakyrelu_75[0][0]               
+dense_78 (Dense)                 (None, 50)            5050        dense_77[0][0]                   
 ____________________________________________________________________________________________________
-dense_45 (Dense)                 (None, 1)             33          dense_44[0][0]                   
+dense_79 (Dense)                 (None, 10)            510         dense_78[0][0]                   
+____________________________________________________________________________________________________
+dropout_40 (Dropout)             (None, 10)            0           dense_79[0][0]                   
+____________________________________________________________________________________________________
+dense_80 (Dense)                 (None, 1)             11          dropout_40[0][0]                 
 ====================================================================================================
-Total params: 160,881
-Trainable params: 160,881
+Total params: 501,819
+Trainable params: 501,819
 Non-trainable params: 0
 ____________________________________________________________________________________________________
-None
 ```
 
 I tried different architecture and 160k trainable parameters should be enough since I already came up with good results with only 18k parameters.
@@ -244,8 +247,7 @@ Later no big change in the validation error is seen.
 
 # Discussion
 
-I have to admit, that I ran out of ideas.
-I included everything that I could find online (lecture/forum/slack/github/walkthough/...), which includes for example:
+During this project I tried different things to get a better model:
 
 * getting more training data
 * getting more training data of critical curves
@@ -259,7 +261,4 @@ I included everything that I could find online (lecture/forum/slack/github/walkt
 * different steering angle correction for left/right camera
 * initialization, different optimizers, different activation functions
 
-
-```python
-
-```
+In order to get further improvement more augmentation and data from different tracks could be used. This could produce a more general model.
