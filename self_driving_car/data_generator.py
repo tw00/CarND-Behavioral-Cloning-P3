@@ -212,15 +212,17 @@ class DataGenerator:
         index_path = basepath + "/" + dataset + "/" + "index";
         df = pd.read_pickle(index_path + '.pkl')
         if use_original_data:
-            replacer = lambda x: x.replace('IMG_preprocessed', 'IMG')
-            df.data['img'] = df.data['img'].apply(replacer)
+            replacer = lambda x: x.replace('IMG_preprocessed', 'IMG').replace('mod_identity_',
+                                                                              '').replace('mod_flip_',
+                                                                                          '')
+            df['img'] = df['img'].apply(replacer)
         if isinstance(self.data,pd.DataFrame):
             self.data = pd.concat([self.data, df], ignore_index=True)
         else:
             self.data = df;
 
     # ----------------------------------------------------------------------------------------
-    def load_img_to_ram(self):
+    def load_img_to_ram(self, flip = False):
         print('loading images to ram...');
         valid_rows = self.data[self.data['is_active']]
         self.img_loaded_to_ram = False;
@@ -228,6 +230,8 @@ class DataGenerator:
         for i, row in valid_rows.iterrows():
             name = row['img']
             img = self.read_img(name);
+            if flip and row['filter'] == 'mod_flip':
+                imgA = cv2.flip(img,1);
             self.img_cache[name] = img;
         self.img_loaded_to_ram = True;
         print('all images loaded to ram');

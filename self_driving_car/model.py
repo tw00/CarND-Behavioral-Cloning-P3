@@ -63,7 +63,7 @@ class SDRegressionModel():
         elif model == "nvidia":
             return {'name': "nvidia",
                     'model': SDRegressionModel.model_nvidia(),
-                    'normalizer': SDRegressionModel.no_normalize}
+                    'normalizer': SDRegressionModel.original_normalize}
         else: print("model %s not found" % model);
 
     # ----------------------------------------------------------------------------------------
@@ -108,6 +108,9 @@ class SDRegressionModel():
             img = img.copy();
             img = cv2.resize(img, (192, 192))
         return img
+
+    def original_normalize(img):
+        return img[60:135, : ]
 
     # ----------------------------------------------------------------------------------------
     def model_crop():
@@ -323,8 +326,8 @@ class SDRegressionModel():
             return tf.image.resize_images(img, (66, 200))
 
         model = Sequential()
-        # model.add(Lambda(resize_images, input_shape=input_shape))
-        model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(192,192,3)))
+        model.add(Lambda(resize_images, input_shape=(75, 320, 3)))
+#        model.add(Cropping2D(cropping=((45,15),(0,0)), input_shape=(192,192,3)))
         model.add(Lambda(lambda x: x/255.-0.5))
         model.add(Convolution2D(24, 5, 5, border_mode="same", subsample=(2,2), activation="elu"))
         model.add(SpatialDropout2D(0.2))
@@ -463,3 +466,4 @@ if __name__ == '__main__':
     else:
         model = SDRegressionModel.model_architecture(sys.argv[1])['model']
         model.summary()
+
