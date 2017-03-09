@@ -110,7 +110,10 @@ class SDRegressionModel():
         return img
 
     def original_normalize(img):
-        return img[60:135, : ]
+        img = img.copy();
+        img = img[60:135,:]
+        img = cv2.resize(img, (200, 66))
+        return img
 
     # ----------------------------------------------------------------------------------------
     def model_crop():
@@ -315,13 +318,8 @@ class SDRegressionModel():
 
     # ----------------------------------------------------------------------------------------
     def model_nvidia():
-        def resize_images(img):
-            import tensorflow as tf
-            return tf.image.resize_images(img, (66, 200))
-
         model = Sequential()
-        model.add(Lambda(resize_images, input_shape=(75, 320, 3)))
-        model.add(Lambda(lambda x: x/255.-0.5))
+        model.add(Lambda(lambda x: x/255.-0.5, input_shape=(66,200,3)) )
         model.add(Convolution2D(24, 5, 5, border_mode="same", subsample=(2,2), activation="elu"))
         model.add(SpatialDropout2D(0.2))
         model.add(Convolution2D(36, 5, 5, border_mode="same", subsample=(2,2), activation="elu"))
