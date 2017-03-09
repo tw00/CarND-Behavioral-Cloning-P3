@@ -28,13 +28,18 @@ app = Flask(__name__)
 model = None
 prev_image_array = None
 last_steering = 0;
-SMOOTH_STEERING = True
+SMOOTH_STEERING = False
 alpha = 2.5
-target_speed = 10
+target_speed = 14-6
+target_speed = 30
+steer_factor = 1.00
 
 # <<<<<<<<<<<<<<<<<<<<<
 #normalize = SDRegressionModel.model_architecture("commaAI")['normalizer'];
-normalize = SDRegressionModel.model_architecture("commaAI_modified")['normalizer'];
+#normalize = SDRegressionModel.model_architecture("commaAI_modified")['normalizer'];
+#normalize = SDRegressionModel.model_architecture("udacity")['normalizer'];
+#normalize = SDRegressionModel.model_architecture("simple2")['normalizer'];
+normalize = SDRegressionModel.model_architecture("simple")['normalizer'];
 # <<<<<<<<<<<<<<<<<<<<<
 
 @sio.on('telemetry')
@@ -61,6 +66,7 @@ def telemetry(sid, data):
             else:
                 steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
 
+        steering_angle = steering_angle * steer_factor;
         throttle = target_speed / 100
         print("predicted steering = {}, throttle = {}".format(steering_angle, throttle))
         send_control(steering_angle, throttle)
@@ -108,6 +114,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     model = load_model(args.model)
+    print(model.summary())
 
     if args.image_folder != '':
         print("Creating image folder at {}".format(args.image_folder))
